@@ -1,5 +1,6 @@
 package dw.db.point;
 
+import dw.db.Database;
 import dw.db.annotation.DaoAutoDatabase;
 import dw.db.trans.TransactionManager;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -26,27 +27,34 @@ public class DaoDatabasePoint
 		Object[] args = point.getArgs();
 		Method m = ((MethodSignature) point.getSignature()).getMethod();
 		DaoAutoDatabase daoAutoDatabase = m.getAnnotation(DaoAutoDatabase.class);
-		//已有DB不再处理
-		if(args[0]!=null)
+		boolean isCreateNewTrans = false;
+		TransactionManager transactionManager = new TransactionManager();
+		if (args[0] == null)
 		{
-			try
+			Database db = transactionManager.getCurrentDatabase();
+			//service未传递session，则新启session，并一定会开启事务
+			if (db == null)
 			{
-				return point.proceed();
-			} catch (Throwable throwable)
-			{
-				throwable.printStackTrace();
+				transactionManager.createNewDatabase(true);
+				db = transactionManager.getCurrentDatabase();
 			}
-			return null;
+			args[0] = db;
 		}
-		//注入DB
 		Object result = null;
+		boolean isNeedRollback = true;
 		try
 		{
-			args[0] = new TransactionManager().getCurrentDatabase();
 			result = point.proceed(args);
+			isNeedRollback = false;
 		} catch (Throwable throwable)
 		{
 			throw throwable;
+		} finally
+		{
+			if (isCreateNewTrans)
+			{
+				transactionManager.removeCurrentDatabase(isNeedRollback);
+			}
 		}
 		return result;
 	}

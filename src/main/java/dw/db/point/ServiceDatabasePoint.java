@@ -1,5 +1,6 @@
 package dw.db.point;
 
+import dw.db.Database;
 import dw.db.annotation.ServiceAutoTrans;
 import dw.db.trans.TransactionManager;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,12 @@ public class ServiceDatabasePoint
 			if(isNeedNewDbSession)
 			{
 				transactionManager.createNewDatabase(isNeedTrans);
+			}else{
+				Database db = transactionManager.getCurrentDatabase();
+				if(db==null)
+				{
+					transactionManager.createNewDatabase(isNeedTrans);
+				}
 			}
 			boolean isNeedRollback = true;
 			Object result = null;
