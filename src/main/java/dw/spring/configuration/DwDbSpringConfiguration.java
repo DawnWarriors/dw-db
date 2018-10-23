@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class DwSpringConfiguration
+public class DwDbSpringConfiguration
 {
 	@Bean
 	public DwDbSpringListener getDwDbSpringListener()
