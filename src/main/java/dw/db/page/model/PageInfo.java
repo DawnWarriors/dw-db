@@ -1,7 +1,9 @@
 package dw.db.page.model;
 
 import dw.common.util.str.StrUtil;
+import lombok.Data;
 
+@Data
 public class PageInfo
 {
 	private int		curPage				= 0;
@@ -61,66 +63,6 @@ public class PageInfo
 		this.pageNumEnd = end;
 	}
 
-	public int getCurPage()
-	{
-		return curPage;
-	}
-
-	public int getPageCount()
-	{
-		return pageCount;
-	}
-
-	public int getPageNumBegin()
-	{
-		return pageNumBegin;
-	}
-
-	public int getPageNumEnd()
-	{
-		return pageNumEnd;
-	}
-
-	public boolean isHasNext()
-	{
-		return hasNext;
-	}
-
-	public boolean isHasPre()
-	{
-		return hasPre;
-	}
-
-	public void setDataCount(int dataCount)
-	{
-		this.dataCount = dataCount;
-	}
-
-	public int getDataCount()
-	{
-		return dataCount;
-	}
-
-	public int getCurPageDataCount()
-	{
-		return curPageDataCount;
-	}
-
-	public void setCurPageDataCount(int curPageDataCount)
-	{
-		this.curPageDataCount = curPageDataCount;
-	}
-
-	public void setPageSize(int pageSize)
-	{
-		this.pageSize = pageSize;
-	}
-
-	public int getPageSize()
-	{
-		return pageSize;
-	}
-
 	public void setUrlParams(String baseUrl, String ortherParamStr)
 	{
 		baseUrl = baseUrl + "?";
@@ -137,50 +79,5 @@ public class PageInfo
 		url_size_30 = baseUrl + "&pageSize=" + 30 + "&askPage=" + curPage; //调整分页大小-30
 		url_size_50 = baseUrl + "&pageSize=" + 50 + "&askPage=" + curPage; //调整分页大小-50
 		url_num = baseUrl + "&pageSize=" + pageSize + "&askPage="; //根据页面访问链接前缀，后边拼上页码即可
-	}
-
-	public String getUrl_first()
-	{
-		return url_first;
-	}
-
-	public String getUrl_last()
-	{
-		return url_last;
-	}
-
-	public String getUrl_pre()
-	{
-		return url_pre;
-	}
-
-	public String getUrl_next()
-	{
-		return url_next;
-	}
-
-	public String getUrl_size_10()
-	{
-		return url_size_10;
-	}
-
-	public String getUrl_size_20()
-	{
-		return url_size_20;
-	}
-
-	public String getUrl_size_30()
-	{
-		return url_size_30;
-	}
-
-	public String getUrl_size_50()
-	{
-		return url_size_50;
-	}
-
-	public String getUrl_num()
-	{
-		return url_num;
 	}
 }
