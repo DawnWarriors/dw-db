@@ -120,6 +120,10 @@ public class CreateTbl
 	public static void getDBFileTree(String fileName, Map<String,String> defineMap, Map<String,List<Map<String,String>>> defs, String pathPre)
 	{
 		File file = new File(pathPre + fileName);
+		if(!file.exists())
+		{
+			throw new RuntimeException("resources/dw/dw_tbl_base.txt文件未找到");
+		}
 		InputStreamReader reader = null;
 		try
 		{
