@@ -1,6 +1,6 @@
 package dw.db.page.util;
 
-import dw.db.Database;
+import dw.db.trans.Database;
 import dw.db.page.model.PageInfo;
 import dw.common.util.num.IntUtil;
 import dw.common.util.str.StrUtil;
@@ -10,6 +10,15 @@ import java.util.Map;
 
 public class PageUtil
 {
+	/**
+	 * 获取分页对象
+	 * @param db 数据库session对象
+	 * @param sql 查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @param askPage 请求页码
+	 * @param pageSize 分页大小
+	 * @return 分页对象
+	 */
 	public static PageInfo getPageInfo(Database db, String sql, Map<String,Object> paramGetter, int askPage, int pageSize)
 	{
 		Map<String,Object> pageInfoMap = getPageInfoMap(db, sql, paramGetter, askPage, pageSize);
@@ -26,6 +35,16 @@ public class PageUtil
 		return pageInfo;
 	}
 
+	/**
+	 * 获取分页对象
+	 * @param db 数据库session对象
+	 * @param mainSql 查询主SQL，不带过滤条件
+	 * @param filter 查询过滤条件
+	 * @param paramGetter 查询参数封装Map
+	 * @param askPage 请求页码
+	 * @param pageSize 分页大小
+	 * @return 分页对象
+	 */
 	public static PageInfo getPageInfo(Database db, String mainSql, String filter, Map<String,Object> paramGetter, int askPage, int pageSize)
 	{
 		if (StrUtil.isNotStrNull(filter))
@@ -37,12 +56,12 @@ public class PageUtil
 
 	/**
 	 * 获取分页信息
-	 * @param db
-	 * @param sql
-	 * @param paramGetter
-	 * @param askPage
-	 * @param pageSize
-	 * @return
+	 * @param db 数据库session对象
+	 * @param sql 查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @param askPage 请求页码
+	 * @param pageSize 分页大小
+	 * @return 分页信息Map
 	 */
 	private static Map<String,Object> getPageInfoMap(Database db, String sql, Map<String,Object> paramGetter, int askPage, int pageSize)
 	{
@@ -86,6 +105,12 @@ public class PageUtil
 		return pageInfo;
 	}
 
+	/**
+	 * 为查询参数设置分页限制
+	 * @param offset 偏移量
+	 * @param pageSize 分页大小
+	 * @param paramGetter 参数封装Map
+	 */
 	public static void setLimitInfo(int offset, int pageSize, Map<String,Object> paramGetter)
 	{
 		if (paramGetter == null)

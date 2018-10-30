@@ -1,11 +1,10 @@
 package dw.db.base;
 
 import dw.common.util.str.StrUtil;
-import dw.db.Database;
+import dw.db.trans.Database;
 import dw.db.page.model.PageInfo;
 import dw.db.page.util.PageUtil;
 import dw.db.trans.TransactionManager;
-import dw.db.util.DBModelUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -14,26 +13,24 @@ import java.util.Map;
 /**
  * Created by xins_cyf on 2017/3/11.
  */
-public class DaoBase
+public abstract class DaoBase<T extends ModelBase>
 {
-	protected Class  modelClass = null;
-	protected String tblName    = null;
+	protected Class<T> modelClass = null;
+	protected String   tblName    = null;
 
-	public DaoBase(String tblName, Class modelClass)
+	protected DaoBase(String tblName, Class<T> modelClass)
 	{
 		this.tblName = tblName;
 		this.modelClass = modelClass;
 	}
 
 	/**
-	 * 根据ID获取对象
-	 * 该查询将忽略刪除标志
+	 * 根据ID获取对象该查询将忽略刪除标志
 	 *
-	 * @param id
-	 * @param <T>
-	 * @return
+	 * @param id 数据ID值
+	 * @return 结果对象
 	 */
-	public <T> T getById(String id)
+	public T getById(String id)
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		paramGetter.put("id", id);
@@ -41,43 +38,40 @@ public class DaoBase
 	}
 
 	/**
-	 * 锁行更新
+	 * 更新锁查询
 	 *
-	 * @param id
-	 * @param <T>
-	 * @return
+	 * @param id 数据ID值
+	 * @return 结果对象
 	 */
-	public <T> T getById_updateLock(String id)
+	public T getById_updateLock(String id)
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		paramGetter.put("id", id);
-		Database db = new TransactionManager().getCurrentDatabase();
-		T t = (T) DBModelUtil.queryObject(db, modelClass, "id=:id", paramGetter);
+		Database db = TransactionManager.getCurrentDBSession();
+		T t = (T) ObjectProxyFactory.queryObject(db, modelClass, "id=:id", paramGetter, true);
 		return t;
 	}
 
 	/**
 	 * 根据查询条件获取一个对象
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @param <T>
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @return 结果对象，如果结果不唯一，则返回列表第一条
 	 */
-	public <T> T get(String filter, Map<String,Object> paramGetter)
+	public T get(String filter, Map<String,Object> paramGetter)
 	{
 		return _getObject(filter, paramGetter);
 	}
 
 	/**
-	 * 根据查询条件获取一个对象
+	 * 根据查询条件获取对象
 	 *
-	 * @param keys
-	 * @param vals
-	 * @param <T>
-	 * @return
+	 * @param keys 过滤条件列名数组
+	 * @param vals 与列名数组对应的过滤条件值
+	 * @return 结果对象，如果结果不唯一，则返回列表第一条
 	 */
-	public <T> T get(String keys[], Object vals[])
+	public T get(String keys[], Object vals[])
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		String filter = getFilter(keys, vals, paramGetter);
@@ -87,12 +81,11 @@ public class DaoBase
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @param <T>
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @return 结果对象列表
 	 */
-	public <T> List<T> getList(String filter, Map<String,Object> paramGetter)
+	public List<T> getList(String filter, Map<String,Object> paramGetter)
 	{
 		return _getObjects(filter, paramGetter);
 	}
@@ -100,12 +93,11 @@ public class DaoBase
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param keys
-	 * @param vals
-	 * @param <T>
-	 * @return
+	 * @param keys 过滤条件列名数组
+	 * @param vals 与列名数组对应的过滤条件值
+	 * @return 结果对象列表
 	 */
-	public <T> List<T> getList(String keys[], Object vals[])
+	public List<T> getList(String keys[], Object vals[])
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		String filter = getFilter(keys, vals, paramGetter);
@@ -113,86 +105,56 @@ public class DaoBase
 	}
 
 	/**
-	 * 查询全部，无过滤条件
+	 * 根据无参条件查询列表
 	 *
-	 * @param <T>
-	 * @return
+	 * @param filter 拼装的过滤条件
+	 * @return 结果对象列表
 	 */
-	public <T> List<T> getList()
-	{
-		Map<String,Object> paramGetter = new HashMap<>();
-		String filter = "";
-		return getList(filter, paramGetter);
-	}
-
-	/**
-	 * 查询列表
-	 *
-	 * @param filter
-	 * @param <T>
-	 * @return
-	 */
-	public <T> List<T> getListByFilter(String filter)
+	public List<T> getListByFilter(String filter)
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		return getList(filter, paramGetter);
-	}
-
-	/**
-	 * 查询全部，无过滤条件
-	 *
-	 * @param <T>
-	 * @return
-	 */
-	public <T> List<T> getList(String orderBy)
-	{
-		Map<String,Object> paramGetter = new HashMap<>();
-		String filter = "";
-		return getList(filter, paramGetter, orderBy);
 	}
 
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @param orderBy
-	 * @param <T>
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @param orderBy     排序字段和排序方式
+	 * @return 经过排序的结果对象列表
 	 */
-	public <T> List<T> getList(String filter, Map<String,Object> paramGetter, String orderBy)
+	public List<T> getList(String filter, Map<String,Object> paramGetter, String orderBy)
 	{
-		//        return (List<T>) DBModelUtil.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter, orderBy);
 		return _getObjects(filter, paramGetter, orderBy);
 	}
 
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param keys
-	 * @param vals
-	 * @param <T>
-	 * @return
+	 * @param keys    过滤条件列名数组
+	 * @param vals    与列名数组对应的过滤条件值
+	 * @param orderBy 排序字段和排序方式
+	 * @return 经过排序的结果对象列表
 	 */
-	public <T> List<T> getListFromCache(String keys[], Object vals[], String orderBy)
+	public List<T> getList(String keys[], Object vals[], String orderBy)
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		String filter = getFilter(keys, vals, paramGetter);
-		return getList(filter, paramGetter, orderBy);
+		return _getObjects(filter, paramGetter, orderBy);
 	}
 
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @param orderBy
-	 * @param pageNum
-	 * @param pageSize
-	 * @param <T>
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @param orderBy     排序字段和排序方式
+	 * @param pageNum     页码
+	 * @param pageSize    分页大小
+	 * @return 经过排序和分页的结果列表
 	 */
-	public <T> List<T> getList(String filter, Map<String,Object> paramGetter, String orderBy, int pageNum, int pageSize)
+	public List<T> getList(String filter, Map<String,Object> paramGetter, String orderBy, int pageNum, int pageSize)
 	{
 		return _getObjects(filter, paramGetter, orderBy, pageNum, pageSize);
 	}
@@ -200,12 +162,14 @@ public class DaoBase
 	/**
 	 * 根据查询条件获取对象列表
 	 *
-	 * @param keys
-	 * @param vals
-	 * @param <T>
-	 * @return
+	 * @param keys     过滤条件列名数组
+	 * @param vals     与列名数组对应的过滤条件值
+	 * @param orderBy  排序字段和排序方式
+	 * @param pageNum  页码
+	 * @param pageSize 分页大小
+	 * @return 经过排序和分页的结果列表
 	 */
-	public <T> List<T> getList(String keys[], Object vals[], String orderBy, int pageNum, int pageSize)
+	public List<T> getList(String keys[], Object vals[], String orderBy, int pageNum, int pageSize)
 	{
 		Map<String,Object> paramGetter = new HashMap<>();
 		String filter = getFilter(keys, vals, paramGetter);
@@ -215,13 +179,15 @@ public class DaoBase
 	/**
 	 * 获取分页信息
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @param pageNum     页码
+	 * @param pageSize    分页大小
+	 * @return 分页对象PageInfo
 	 */
 	public PageInfo getPageInfo(String filter, Map<String,Object> paramGetter, int pageNum, int pageSize)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		PageInfo pageInfo = PageUtil.getPageInfo(db, "select id from " + this.tblName, deletedDataFilter(filter), paramGetter, pageNum, pageSize);
 		return pageInfo;
 	}
@@ -229,8 +195,9 @@ public class DaoBase
 	/**
 	 * 获取数据总条数
 	 *
-	 * @param filter
-	 * @return
+	 * @param filter      过滤条件
+	 * @param paramGetter 条件参数Map
+	 * @return 总数据条数
 	 */
 	public int getCount(String filter, Map<String,Object> paramGetter)
 	{
@@ -241,8 +208,8 @@ public class DaoBase
 	/**
 	 * 拼接默认过滤条件，用于直接用sql的执行
 	 *
-	 * @param filter
-	 * @return
+	 * @param filter 原过滤条件
+	 * @return 返回拼接了底层默认条件的新过滤条件，例如：逻辑删除过滤
 	 */
 	public String addDefaultFilter(String filter)
 	{
@@ -252,10 +219,10 @@ public class DaoBase
 	/**
 	 * 获取模糊查询查询条件
 	 *
-	 * @param key
-	 * @param value
-	 * @param paramGetter
-	 * @return
+	 * @param key         字段名
+	 * @param value       字段值
+	 * @param paramGetter 参数Map
+	 * @return 查询条件
 	 */
 	protected String getLikeFilter(String key, String value, Map<String,Object> paramGetter)
 	{
@@ -267,10 +234,10 @@ public class DaoBase
 	/**
 	 * 获取右匹配模糊查询查询条件
 	 *
-	 * @param key
-	 * @param value
-	 * @param paramGetter
-	 * @return
+	 * @param key         字段名
+	 * @param value       字段值
+	 * @param paramGetter 参数Map
+	 * @return 查询条件
 	 */
 	protected String getLeftLikeFilter(String key, String value, Map<String,Object> paramGetter)
 	{
@@ -282,10 +249,10 @@ public class DaoBase
 	/**
 	 * 获取左匹配模糊查询查询条件
 	 *
-	 * @param key
-	 * @param value
-	 * @param paramGetter
-	 * @return
+	 * @param key         字段名
+	 * @param value       字段值
+	 * @param paramGetter 参数Map
+	 * @return 查询条件
 	 */
 	protected String getRightLikeFilter(String key, String value, Map<String,Object> paramGetter)
 	{
@@ -297,7 +264,8 @@ public class DaoBase
 	/**
 	 * 添加删除数据过滤
 	 *
-	 * @param filter
+	 * @param filter 过滤条件
+	 * @return 逻辑删除过滤
 	 */
 	private String deletedDataFilter(String filter)
 	{
@@ -314,10 +282,10 @@ public class DaoBase
 	/**
 	 * 获取查询条件
 	 *
-	 * @param keys
-	 * @param vals
-	 * @param paramGetter
-	 * @return
+	 * @param keys 字段名
+	 * @param vals 字段值
+	 * @param paramGetter 参数Map
+	 * @return 查询条件
 	 */
 	private String getFilter(String keys[], Object vals[], Map<String,Object> paramGetter)
 	{
@@ -337,43 +305,42 @@ public class DaoBase
 	/**
 	 * 查询忽略刪除标志
 	 *
-	 * @param filter
-	 * @param paramGetter
-	 * @param <T>
-	 * @return
+	 * @param filter 过滤条件
+	 * @param paramGetter 参数Map
+	 * @return Model对象
 	 */
-	private <T> T _getObjectIgnoreDelete(String filter, Map<String,Object> paramGetter)
+	private T _getObjectIgnoreDelete(String filter, Map<String,Object> paramGetter)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
-		T t = (T) DBModelUtil.queryObject(db, modelClass, filter, paramGetter);
+		Database db = TransactionManager.getCurrentDBSession();
+		T t = (T) ObjectProxyFactory.queryObject(db, modelClass, filter, paramGetter);
 		return t;
 	}
 
-	private <T> T _getObject(String filter, Map<String,Object> paramGetter)
+	private T _getObject(String filter, Map<String,Object> paramGetter)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
-		T t = (T) DBModelUtil.queryObject(db, modelClass, deletedDataFilter(filter), paramGetter);
+		Database db = TransactionManager.getCurrentDBSession();
+		T t = (T) ObjectProxyFactory.queryObject(db, modelClass, deletedDataFilter(filter), paramGetter);
 		return t;
 	}
 
-	public <T> List<T> _getObjects(String filter, Map<String,Object> paramGetter)
+	public List<T> _getObjects(String filter, Map<String,Object> paramGetter)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
-		List<T> list = (List<T>) DBModelUtil.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter);
+		Database db = TransactionManager.getCurrentDBSession();
+		List<T> list = (List<T>) ObjectProxyFactory.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter);
 		return list;
 	}
 
-	private <T> List<T> _getObjects(String filter, Map<String,Object> paramGetter, String orderBy)
+	private List<T> _getObjects(String filter, Map<String,Object> paramGetter, String orderBy)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
-		List<T> list = (List<T>) DBModelUtil.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter, orderBy);
+		Database db = TransactionManager.getCurrentDBSession();
+		List<T> list = (List<T>) ObjectProxyFactory.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter, orderBy);
 		return list;
 	}
 
-	private <T> List<T> _getObjects(String filter, Map<String,Object> paramGetter, String orderBy, int pageNum, int pageSize)
+	private List<T> _getObjects(String filter, Map<String,Object> paramGetter, String orderBy, int pageNum, int pageSize)
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
-		List<T> list = (List<T>) DBModelUtil.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter, pageNum, pageSize, orderBy);
+		Database db = TransactionManager.getCurrentDBSession();
+		List<T> list = (List<T>) ObjectProxyFactory.queryObjects(db, modelClass, deletedDataFilter(filter), paramGetter, pageNum, pageSize, orderBy);
 		return list;
 	}
 }

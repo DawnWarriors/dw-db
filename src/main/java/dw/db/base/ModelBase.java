@@ -1,10 +1,11 @@
 package dw.db.base;
 
 import dw.common.util.map.MapUtil;
-import dw.db.Database;
-import dw.db.model.DBModelInfo;
+import dw.common.util.str.StrUtil;
+import dw.db.trans.Database;
 import dw.db.trans.TransactionManager;
-import dw.db.util.DBModelUtil;
+import dw.db.util.DBIDUtil;
+import lombok.Data;
 import net.sf.json.JSONObject;
 
 import java.beans.IntrospectionException;
@@ -13,6 +14,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
 
+@Data
 public abstract class ModelBase
 {
 	private   String __tblName;
@@ -21,25 +23,12 @@ public abstract class ModelBase
 	private int _delete_flag = 0;
 	private String id;
 	public  String token;        //token:控制新增和编辑动作
-	/**
-	 * 用于存放原始值
-	 */
-	private final Map<String,Object> _oldDataMap_ = new HashMap<>();
-
-	public Map<String,Object> get_oldDataMap_()
-	{
-		return _oldDataMap_;
-	}
-
-	public void _setOldValue(String fldName, Object value)
-	{
-		_oldDataMap_.put(fldName, value);
-	}
+	private final Map<String,Object> _oldDataMap_ = new HashMap<>(); //持久对象原始值
 
 	/**
 	 * 用于model自己设置原始值时使用
 	 *
-	 * @param dataMap
+	 * @param dataMap 数据集
 	 */
 	protected void _set_oldDataMap_(Map<String,Object> dataMap)
 	{
@@ -48,31 +37,38 @@ public abstract class ModelBase
 
 	public ModelBase()
 	{
-		DBModelInfo info = DBModelUtil.getDBModelInfo(this.getClass());
-		this.__tblName = info.getTblName();
+		this.__tblName = ObjectProxyFactory.getTblName(this.getClass());
 	}
 
 	/**
-	 * 数据插入
+	 * 执行数据表插入
+	 * 如果没有设置主键值，则默认会以UUID生成的ID作为数据主键
+	 *
+	 * @return 数据主键
 	 */
-	public void insert()
+	public String insert()
 	{
 		Date date = new Date();
 		this.set_create_date(date);
 		this.set_update_date(date);
-		Database db = new TransactionManager().getCurrentDatabase();
-		DBModelUtil.insert(db, this);
+		if (StrUtil.isStrTrimNull(this.getId()))
+		{
+			this.setId(DBIDUtil.createUUId());
+		}
+		Database db = TransactionManager.getCurrentDBSession();
+		ObjectProxyFactory.insert(db, this);
+		return this.getId();
 	}
 
 	/**
 	 * 数据更新
 	 *
-	 * @param forbidUpdateFields
+	 * @param forbidUpdateFields 本次更新不参与更新的数据列列名数组
 	 */
 	public void update(String[] forbidUpdateFields)
 	{
 		Date date = new Date();
-		Database db = new TransactionManager().getCurrentDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		this.set_update_date(date);
 		Map<String,Object> dataMap = db.queryMap("select * from " + __tblName + " where id='" + this.getId() + "'");
 		//不提供更新的列，如果没有值，不会进行操作，如果有值，直接覆盖原值
@@ -114,7 +110,7 @@ public abstract class ModelBase
 			dataMap.remove(key);
 		}
 		this._set_oldDataMap_(dataMap);
-		DBModelUtil.update(db, this);
+		ObjectProxyFactory.update(db, this);
 	}
 
 	/**
@@ -123,11 +119,11 @@ public abstract class ModelBase
 	public void update_force()
 	{
 		Date date = new Date();
-		Database db = new TransactionManager().getCurrentDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		this.set_update_date(date);
 		Map<String,Object> dataMap = db.queryMap("select * from " + __tblName + " where id='" + this.getId() + "'");
 		this._set_oldDataMap_(dataMap);
-		DBModelUtil.update(db, this);
+		ObjectProxyFactory.update(db, this);
 	}
 
 	/**
@@ -144,10 +140,10 @@ public abstract class ModelBase
 	 */
 	public void delete_logic()
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		this.set_update_date(new Date());
 		this.set_delete_flag(1);
-		DBModelUtil.update(db, this);
+		ObjectProxyFactory.update(db, this);
 	}
 
 	/**
@@ -155,82 +151,17 @@ public abstract class ModelBase
 	 */
 	public void delete()
 	{
-		Database db = new TransactionManager().getCurrentDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		Map<String,Object> params = new HashMap<>();
 		params.put("id", getId());
 		db.delete(__tblName, params);
 	}
 
-	public void setId(String id)
-	{
-		this.id = id;
-	}
-
-	/**
-	 * 获取主键值，所有子类继承实现
-	 *
-	 * @return
-	 */
-	protected String getId()
-	{
-		return null;
-	}
-
-	public void setToken(String token)
-	{
-		this.token = token;
-	}
-
-	public String getToken()
-	{
-		return this.token;
-	}
-
-	public void set_create_date(Date date)
-	{
-		this._create_date = date;
-	}
-
-	public Date get_create_date()
-	{
-		return _create_date;
-	}
-
-	public void set_update_date(Date date)
-	{
-		this._update_date = date;
-	}
-
-	public Date get_update_date()
-	{
-		return _update_date;
-	}
-
-	public String __getTableName()
-	{
-		return __tblName;
-	}
-
-	public void set_delete_flag(int flag)
-	{
-		this._delete_flag = flag;
-	}
-
-	public int get_delete_flag()
-	{
-		return this._delete_flag;
-	}
-
-	protected String getMODEL_ID()
-	{
-		return "";
-	}
-
 	/**
 	 * 给指定属性设值
 	 *
-	 * @param fieldName
-	 * @param fieldValue
+	 * @param fieldName 属性名
+	 * @param fieldValue 属性值
 	 */
 	public void setValue(String fieldName, Object fieldValue)
 	{
@@ -250,8 +181,8 @@ public abstract class ModelBase
 	/**
 	 * 值copy
 	 *
-	 * @param from
-	 * @param <T>
+	 * @param from 值来源对象
+	 * @param <T> 任意类型对象
 	 */
 	public <T> void copyValue(T from)
 	{
@@ -280,10 +211,31 @@ public abstract class ModelBase
 	/**
 	 * 转换成JSON对象
 	 *
-	 * @return
+	 * @return JSON对象
 	 */
 	public JSONObject toJson()
 	{
 		return JSONObject.fromObject(this);
+	}
+
+	/**
+	 * 获取持久对象在被修改之前的值
+	 *
+	 * @return 持久对象从数据库查出来时对应的field, value组成的Map对象
+	 */
+	public Map<String,Object> get_oldDataMap_()
+	{
+		return _oldDataMap_;
+	}
+
+	/**
+	 * 修改持久化对象旧值
+	 *
+	 * @param fldName 字段名
+	 * @param value   字段值
+	 */
+	public void _setOldValue(String fldName, Object value)
+	{
+		_oldDataMap_.put(fldName, value);
 	}
 }

@@ -1,4 +1,4 @@
-package dw.db.create;
+package dw.code.util;
 
 import dw.common.util.str.StrUtil;
 
@@ -6,11 +6,17 @@ import java.io.File;
 import java.io.FileWriter;
 import java.util.*;
 
-public class CreateDao
+public class CreateDaoUtil
 {
 	private final String lineSeparator = System.getProperty("line.separator");
 	private final String baseDir       = System.getProperty("user.dir") + "/src/main/java/";
 
+	/**
+	 * 创建Dao Java文件
+	 *
+	 * @param daoDirInfo     Dao包路径配置
+	 * @param modelClassInfo Model类信息
+	 */
 	public void work(Map<String,List<String>> daoDirInfo, Map<String,String[]> modelClassInfo)
 	{
 		if (daoDirInfo == null || daoDirInfo.size() == 0)
@@ -40,7 +46,7 @@ public class CreateDao
 			List<String> classInfoList = new ArrayList<>();
 			List<String> methodInfoList = new ArrayList<>();
 			getImportInfo(importInfoList, modelClassAry[0]);
-			getClassInfo(className, classInfoList);
+			getClassInfo(className, classInfoList, modelClassAry[2]);
 			getMethodInfo(className, tblName, modelClassAry[1], methodInfoList);
 			fileWriteIn(tblName, packageDir, packageStr, importInfoList, classInfoList, methodInfoList);
 		}
@@ -54,12 +60,12 @@ public class CreateDao
 		importInfoList.add("import " + modelClassPath + ";");
 	}
 
-	private void getClassInfo(String className, List<String> classInfoList)
+	private void getClassInfo(String className, List<String> classInfoList, String modelClassName)
 	{
 		classInfoList.add("//createDate:" + (new Date()).toString());
 		classInfoList.add("@DwDao");
 		classInfoList.add("@Component");
-		classInfoList.add("public class " + className + " extends DaoBase");
+		classInfoList.add("public class " + className + " extends DaoBase<" + modelClassName + ">");
 	}
 
 	private void getMethodInfo(String className, String tblName, String modelClass, List<String> methodInfoList)

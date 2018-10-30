@@ -1,7 +1,8 @@
 package dw.db.create;
 
-import dw.db.Database;
-import dw.db.DatabaseManager;
+import dw.db.trans.Database;
+import dw.db.trans.DatabaseManager;
+import dw.db.trans.TransactionManager;
 
 public class CreateTblDefBaseTbl
 {
@@ -16,7 +17,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(refid)
 	 * );
 	 */
-	private static final String dw_ref_def_sql        = "create table dw_ref_def (refid varchar(64),tblname1 varchar(64),tblname2 varchar(64),fldnames1 varchar(64),fldnames2 varchar(64),reftype int,primary key(refid));";
+	private final String dw_ref_def_sql        = "create table dw_ref_def (refid varchar(64),tblname1 varchar(64),tblname2 varchar(64),fldnames1 varchar(64),fldnames2 varchar(64),reftype int,primary key(refid));";
 	/**
 	 * create table dw_ref_def_temp(
 	 * refid varchar(64),
@@ -28,7 +29,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(refid)
 	 * );
 	 */
-	private static final String dw_ref_def_temp_sql   = "create table dw_ref_def_temp (refid varchar(64),tblname1 varchar(64),tblname2 varchar(64),fldnames1 varchar(64),fldnames2 varchar(64),reftype int,primary key(refid));";
+	private final String dw_ref_def_temp_sql   = "create table dw_ref_def_temp (refid varchar(64),tblname1 varchar(64),tblname2 varchar(64),fldnames1 varchar(64),fldnames2 varchar(64),reftype int,primary key(refid));";
 	/**
 	 * create table dw_index_def(
 	 * indexid varchar(64),
@@ -37,7 +38,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(indexid)
 	 * );
 	 */
-	private static final String dw_index_def_sql      = "create table dw_index_def (indexid varchar(64),tblname varchar(64),fldname varchar(64),primary key(indexid));";
+	private final String dw_index_def_sql      = "create table dw_index_def (indexid varchar(64),tblname varchar(64),fldname varchar(64),primary key(indexid));";
 	/**
 	 * create table dw_index_def_temp(
 	 * indexid varchar(64),
@@ -46,7 +47,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(indexid)
 	 * );
 	 */
-	private static final String dw_index_def_temp_sql = "create table dw_index_def_temp (indexid varchar(64),tblname varchar(64),fldname varchar(64),primary key(indexid));";
+	private final String dw_index_def_temp_sql = "create table dw_index_def_temp (indexid varchar(64),tblname varchar(64),fldname varchar(64),primary key(indexid));";
 	/**
 	 * create table dw_tbl_def(
 	 * tblid varchar(64),
@@ -56,7 +57,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(tblid,tblname)
 	 * );
 	 */
-	private static final String dw_tbl_def_sql        = "create table dw_tbl_def (tblid varchar(64),tblname varchar(64) not null,tblname_zh varchar(64) not null,cacheflags int,primary key(tblid,tblname));";
+	private final String dw_tbl_def_sql        = "create table dw_tbl_def (tblid varchar(64),tblname varchar(64) not null,tblname_zh varchar(64) not null,cacheflags int,primary key(tblid,tblname));";
 	/**
 	 * create table dw_tbl_def_temp(
 	 * tblid varchar(64),
@@ -66,7 +67,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(tblname)
 	 * );
 	 */
-	private static final String dw_tbl_def_temp_sql   = "create table dw_tbl_def_temp (tblid varchar(64),tblname varchar(64) not null,tblname_zh varchar(64) not null,cacheflags int,primary key(tblname));";
+	private final String dw_tbl_def_temp_sql   = "create table dw_tbl_def_temp (tblid varchar(64),tblname varchar(64) not null,tblname_zh varchar(64) not null,cacheflags int,primary key(tblname));";
 	/**
 	 * create table dw_fld_def(
 	 * tblid varchar(64),
@@ -84,7 +85,7 @@ public class CreateTblDefBaseTbl
 	 * primary key(tblname,fldname)
 	 * );
 	 */
-	private static final String dw_fld_def_sql        = "create table dw_fld_def (tblid varchar(64),tblname varchar(64),fldid varchar(64),fldname varchar(64),fldname_zh varchar(64),fldtype varchar(16),fldlen int,flddecimal int,fldattr varchar(8),flddefault varchar(16),fldreftbl varchar(64),fldreffld varchar(64),primary key(tblname,fldname));";
+	private final String dw_fld_def_sql        = "create table dw_fld_def (tblid varchar(64),tblname varchar(64),fldid varchar(64),fldname varchar(64),fldname_zh varchar(64),fldtype varchar(16),fldlen int,flddecimal int,fldattr varchar(8),flddefault varchar(16),fldreftbl varchar(64),fldreffld varchar(64),primary key(tblname,fldname));";
 	/**
 	 * create table dw_fld_def_temp(
 	 * tblid varchar(64),
@@ -102,12 +103,15 @@ public class CreateTblDefBaseTbl
 	 * primary key(tblname,fldid,fldname)
 	 * );
 	 */
-	private static final String dw_fld_def_temp_sql   = "create table dw_fld_def_temp (tblid varchar(64),tblname varchar(64),fldid varchar(64),fldname varchar(64),fldname_zh varchar(64),fldtype varchar(16),fldlen int,flddecimal int,fldattr varchar(8),flddefault varchar(16),fldreftbl varchar(64),fldreffld varchar(64),primary key(tblname,fldid,fldname));";
+	private final String dw_fld_def_temp_sql   = "create table dw_fld_def_temp (tblid varchar(64),tblname varchar(64),fldid varchar(64),fldname varchar(64),fldname_zh varchar(64),fldtype varchar(16),fldlen int,flddecimal int,fldattr varchar(8),flddefault varchar(16),fldreftbl varchar(64),fldreffld varchar(64),primary key(tblname,fldid,fldname));";
 
-	@SuppressWarnings("resource")
-	public static void work() throws Exception
+	/**
+	 * 创建系统基础表
+	 * @throws Exception 建表过程中出现异常
+	 */
+	public void work() throws Exception
 	{
-		Database db = DatabaseManager.createDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		try
 		{
 			createBaseTbl(db,"dw_ref_def",dw_ref_def_sql);
@@ -121,13 +125,10 @@ public class CreateTblDefBaseTbl
 		} catch (Exception e)
 		{
 			throw new RuntimeException(e);
-		} finally
-		{
-			DatabaseManager.closeDatabase(db);
 		}
 	}
 
-	private static void createBaseTbl(Database db, String tblName, String createSql)
+	private void createBaseTbl(Database db, String tblName, String createSql)
 	{
 		//判断表是否已经存在
 		String checkSql = "select count(1) from " + tblName;

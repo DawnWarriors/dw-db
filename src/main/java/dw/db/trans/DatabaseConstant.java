@@ -1,4 +1,4 @@
-package dw.db;
+package dw.db.trans;
 
 public class DatabaseConstant
 {
@@ -11,18 +11,18 @@ public class DatabaseConstant
 	//字段定义表中可修改的字段
 	public static final String	flddef_editable_cols[]	= { "fldid", "fldname_zh", "fldtype", "fldlen", "flddecimal", "fldattr", "flddefault", "fldreftbl", "fldreffld" };
 	//tbldef表主键
-	private static final String	tbldefIDNames[]			= { "tblname" };
+	public static final String	tbldefIDNames[]			= { "tblname" };
 	//flddef表主键
-	private static final String	flddefIDNames[]			= { "tblname", "fldname" };
+	public static final String	flddefIDNames[]			= { "tblname", "fldname" };
 	//table和sql 组成key的集合的缓存的key
 	public static final String	tableSqlCacheKey		= "TABLE_SQL_CACHE_KEY:";
 
 	/**
 	 * 根据表名获取主键字段名称
-	 * @param tblName
-	 * @return
+	 * @param tblName 数据表名
+	 * @return 默认主键字段数组
 	 */
-	public static String[] getIdNames(String tblName)
+	static String[] getIdNames(String tblName)
 	{
 		switch (tblName)
 		{

@@ -1,9 +1,6 @@
-package dw.db.util;
+package dw.db.trans;
 
-import dw.db.Database;
-import dw.db.DatabaseConstant;
-import dw.db.code.util.MakeCodeUtil;
-import dw.db.model.SqlParameter;
+import dw.db.sql.SqlParameter;
 import dw.common.util.str.StrUtil;
 
 import javax.sql.DataSource;
@@ -17,14 +14,15 @@ import java.util.*;
 public class DBUtil
 {
 	/**
-	* 将指定行指定列数据读入Object[]中
-	* @param rs
-	* @param columns
-	* @param row
-	* @return
-	* @throws Exception
-	*/
-	public static Object[] getData1RowFromResultSet(ResultSet rs, String columns, int row) throws Exception
+	 * 将指定行指定列数据读入Object[]中
+	 *
+	 * @param rs 结果集
+	 * @param columns 列信息
+	 * @param row 当前行号
+	 * @return 一行数据组成的数组
+	 * @throws SQLException 数据库异常
+	 */
+	static Object[] getData1RowFromResultSet(ResultSet rs, String columns, int row) throws SQLException
 	{
 		rs.last();
 		int rowCount = rs.getRow();
@@ -36,7 +34,7 @@ public class DBUtil
 		rs.absolute(row);
 		String[] column = columns.split(",");
 		Object[] result = new Object[column.length];
-		for (int i = 0; i < column.length; i++)
+		for (int i = 0 ; i < column.length ; i++)
 		{
 			result[i] = getObjectFormRS(rs, column[i]);
 		}
@@ -45,31 +43,33 @@ public class DBUtil
 	}
 
 	/**
-	* 将指定行指定列数据读入Object[]中
-	* @param rs
-	* @param row
-	* @return
-	* @throws Exception
-	*/
-	public static Object[] getData1RowFormResultSet(ResultSet rs, int row) throws Exception
+	 * 将指定行指定列数据读入Object[]中
+	 *
+	 * @param rs 结果集
+	 * @param row 行号
+	 * @return 一行数据组成的数组
+	 * @throws SQLException 数据库异常
+	 */
+	static Object[] getData1RowFormResultSet(ResultSet rs, int row) throws SQLException
 	{
 		return getData1RowFromResultSet(rs, getColumnNames(rs), row);
 	}
 
 	/**
-	* 获取所有行指定列的全部数据
-	* @param rs
-	* @param columns
-	* @return
-	* @throws Exception
-	*/
-	public static Object[][] getData2FormResultSet(ResultSet rs, String columns) throws Exception
+	 * 获取所有行指定列的全部数据
+	 *
+	 * @param rs 结果集
+	 * @param columns 列名
+	 * @return 结果集二维数组
+	 * @throws SQLException 数据库异常
+	 */
+	static Object[][] getData2FormResultSet(ResultSet rs, String columns) throws SQLException
 	{
 		rs.last();
 		int rowCount = rs.getRow();
 		rs.beforeFirst();
 		Object[][] result = new Object[rowCount][];
-		for (int i = 1; i <= rowCount; i++)
+		for (int i = 1 ; i <= rowCount ; i++)
 		{
 			result[i - 1] = getData1RowFromResultSet(rs, columns, i);
 		}
@@ -77,17 +77,18 @@ public class DBUtil
 	}
 
 	/**
-	* 获取指定列数据
-	* @param rs
-	* @param column
-	* @return
-	* @throws Exception
-	*/
-	public static Object[] getData1ColFromResultSet(ResultSet rs, String column) throws Exception
+	 * 获取指定列数据
+	 *
+	 * @param rs 结果集
+	 * @param column 列名
+	 * @return 一列数据
+	 * @throws SQLException 数据库异常
+	 */
+	static Object[] getData1ColFromResultSet(ResultSet rs, String column) throws SQLException
 	{
 		Object[][] objs = getData2FormResultSet(rs, column);
 		Object[] result = new Object[objs.length];
-		for (int i = 0; i < objs.length; i++)
+		for (int i = 0 ; i < objs.length ; i++)
 		{
 			result[i] = objs[i][0];
 		}
@@ -95,12 +96,13 @@ public class DBUtil
 	}
 
 	/**
-	* 将结果集读入Object数组
-	* @param rs
-	* @return
-	* @throws SQLException
-	*/
-	public static Object[][] getData2FromResultSet(ResultSet rs) throws SQLException
+	 * 将结果集读入Object数组
+	 *
+	 * @param rs 结果集
+	 * @return 结果集二维数组
+	 * @throws SQLException 数据库异常
+	 */
+	static Object[][] getData2FromResultSet(ResultSet rs) throws SQLException
 	{
 		ResultSetMetaData metaData = rs.getMetaData();
 		int columnCount = metaData.getColumnCount();
@@ -108,10 +110,10 @@ public class DBUtil
 		int rowCount = rs.getRow();
 		Object[][] result = new Object[rowCount][columnCount];
 		rs.beforeFirst();
-		for (int i = 0; i < rowCount; i++)
+		for (int i = 0 ; i < rowCount ; i++)
 		{
 			rs.next();
-			for (int j = 0; j < columnCount; j++)
+			for (int j = 0 ; j < columnCount ; j++)
 			{
 				result[i][j] = getObjectFormRS(rs, j + 1);
 			}
@@ -121,20 +123,21 @@ public class DBUtil
 	}
 
 	/**
-	 * 将结果集读入List<map>中
-	 * @param rs
-	 * @param columns
-	 * @return
-	 * @throws Exception
+	 * 将结果集读入MapList中
+	 *
+	 * @param rs 结果集
+	 * @param columns 列名信息
+	 * @return MapList
+	 * @throws SQLException 数据库异常
 	 */
-	public static List<Map<String,Object>> getMapFormResultSet(ResultSet rs, String columns) throws SQLException
+	static List<Map<String,Object>> getMapFormResultSet(ResultSet rs, String columns) throws SQLException
 	{
 		String column[] = columns.split(",");
 		List<Map<String,Object>> result = new ArrayList<>();
 		while (rs.next())
 		{
 			Map<String,Object> recordMap = new HashMap<>();
-			for (int i = 0; i < column.length; i++)
+			for (int i = 0 ; i < column.length ; i++)
 			{
 				recordMap.put(column[i], getObjectFormRS(rs, column[i]));
 			}
@@ -145,25 +148,27 @@ public class DBUtil
 	}
 
 	/**
-	 * 未知列名的情况下，将结果集读入List<map>中
-	 * @param rs
-	 * @return
-	 * @throws SQLException
+	 * 未知列名的情况下，将结果集读入MapList中
+	 *
+	 * @param rs 结果集
+	 * @return MapList
+	 * @throws SQLException 数据库异常
 	 */
-	public static List<Map<String,Object>> getMapFromResultSet(ResultSet rs) throws SQLException
+	static List<Map<String,Object>> getMapFromResultSet(ResultSet rs) throws SQLException
 	{
 		return getMapFormResultSet(rs, getColumnNames(rs));
 	}
 
 	/**
 	 * 将查询结果封装成以主键值为 KEY 的 Map
-	 * @param dataSource
-	 * @param tableName
-	 * @param rs
-	 * @return
-	 * @throws SQLException
+	 *
+	 * @param dataSource 数据源
+	 * @param tableName 表名
+	 * @param rs 结果集
+	 * @return 以主键值为 KEY 的 Map
+	 * @throws SQLException 数据库异常
 	 */
-	public static Map<String,Map<String,Object>> getMapMapFromResultSet(DataSource dataSource, String tableName, ResultSet rs) throws SQLException
+	static Map<String,Map<String,Object>> getMapMapFromResultSet(DataSource dataSource, String tableName, ResultSet rs) throws SQLException
 	{
 		Map<String,Map<String,Object>> result = new HashMap<>();
 		String[] keys = DatabaseConstant.getIdNames(tableName);
@@ -171,7 +176,7 @@ public class DBUtil
 		for (Map<String,Object> map : listMap)
 		{
 			String idValue = "";
-			for (int i = 0; i < keys.length; i++)
+			for (int i = 0 ; i < keys.length ; i++)
 			{
 				if (i > 0)
 				{
@@ -186,15 +191,17 @@ public class DBUtil
 
 	/**
 	 * 获取rs中所有的列名
-	 * @return
-	 * @throws SQLException 
+	 *
+	 * @param rs 结果集
+	 * @return 结果集中所有列名，逗号分隔
+	 * @throws SQLException 数据库异常
 	 */
-	public static String getColumnNames(ResultSet rs) throws SQLException
+	static String getColumnNames(ResultSet rs) throws SQLException
 	{
 		ResultSetMetaData metaData = rs.getMetaData();
 		int columnCount = metaData.getColumnCount();
 		String columnNames = "";
-		for (int i = 0; i < columnCount; i++)
+		for (int i = 0 ; i < columnCount ; i++)
 		{
 			if (i > 0)
 			{
@@ -208,16 +215,14 @@ public class DBUtil
 		return columnNames;
 	}
 
-	// SqlUtil: sql 解析 获取表名、列名、执行类型（更新，删除，查询，新加）、过滤条件、排序（、分组）
-	//			将map的数据，组装成SQL语句（insert、update、delete）
-	//			根据map拼装过滤条件
 	/**
 	 * 将ParamSQL解析成可直接执行的组装方式
-	 * @param sql
-	 * @param params
-	 * @return
+	 *
+	 * @param sql SQL
+	 * @param params 参数Map
+	 * @return SQL参数对象
 	 */
-	public static SqlParameter parseParamSql(String sql, Map<String,Object> params)
+	static SqlParameter parseParamSql(String sql, Map<String,Object> params)
 	{
 		if (!sqlHasParameter(sql))
 		{
@@ -227,7 +232,7 @@ public class DBUtil
 		boolean isInQuote = false;
 		StringBuffer newSql = new StringBuffer();
 		List<String> paramNames = new ArrayList<>();
-		for (int i = 0; i < sqlLen; i++)
+		for (int i = 0 ; i < sqlLen ; i++)
 		{
 			char ch = sql.charAt(i);
 			if (!isInQuote)
@@ -238,7 +243,7 @@ public class DBUtil
 					{
 						char chAry[] = new char[128];
 						int chAryIndex = 0;
-						for (i++; i < sqlLen; i++)
+						for (i++; i < sqlLen ; i++)
 						{
 							ch = sql.charAt(i);
 							if (!Character.isJavaIdentifierPart(ch))
@@ -271,8 +276,9 @@ public class DBUtil
 
 	/**
 	 * 简单判断是否是参数格式的SQL
-	 * @param sql
-	 * @return
+	 *
+	 * @param sql sql语句
+	 * @return 是否是参数格式的SQL
 	 */
 	private static boolean sqlHasParameter(String sql)
 	{
@@ -280,7 +286,7 @@ public class DBUtil
 			return false;
 		boolean isInQuote = false;
 		int lsqLen = sql.length();
-		for (int i = 0; i < lsqLen; i++)
+		for (int i = 0 ; i < lsqLen ; i++)
 		{
 			char ch = sql.charAt(i);
 			if (ch == '\'')
@@ -293,10 +299,11 @@ public class DBUtil
 
 	/**
 	 * 根据更新语句，返回所更新表的表名(这里更新指的是：增删改)
-	 * @param sql
-	 * @return
+	 *
+	 * @param sql sql语句
+	 * @return 表名
 	 */
-	public static String getUpdateTableName(String sql)
+	static String getUpdateTableName(String sql)
 	{
 		if (sql == null || sql.trim().length() == 0)
 		{
@@ -320,13 +327,14 @@ public class DBUtil
 
 	/**
 	 * 根据update params获取update SQL语句
-	 * @param dataSource
-	 * @param tableName
-	 * @param params
+	 *
+	 * @param dataSource 数据源
+	 * @param tableName 表名
+	 * @param params 参数Map
 	 * @param keyColNames 考虑多主键情况
-	 * @return
+	 * @return SQL语句
 	 */
-	public static String getUpdateSql(DataSource dataSource, String tableName, Map<String,Object> params, String keyColNames[])
+	static String getUpdateSql(DataSource dataSource, String tableName, Map<String,Object> params, String keyColNames[])
 	{
 		String sql = "";
 		if (params.size() > 1)
@@ -347,7 +355,7 @@ public class DBUtil
 				}
 			}
 			sql += " where ";
-			for (int i = 0; i < keyColNames.length; i++)
+			for (int i = 0 ; i < keyColNames.length ; i++)
 			{
 				if (i > 0)
 				{
@@ -361,12 +369,13 @@ public class DBUtil
 
 	/**
 	 * 根据insert params 获取insert SQL语句
-	 * @param <T>
-	 * @param tableName
-	 * @param params
-	 * @return
+	 *
+	 * @param tableName 表名
+	 * @param params 参数Map
+	 * @param <T> 任意对象
+	 * @return SQL语句
 	 */
-	public static <T> String getInsertSql(String tableName, Map<String,T> params)
+	static <T> String getInsertSql(String tableName, Map<String,T> params)
 	{
 		String sql = "";
 		sql += "insert into " + tableName;
@@ -394,14 +403,15 @@ public class DBUtil
 	/**
 	 * 根据表名获取删除语句
 	 * 表数据删除，只能根据主键去删除
-	 * @param tableName
-	 * @return
+	 *
+	 * @param tableName 表名
+	 * @return SQL语句
 	 */
-	public static String getDeleteSql(String tableName)
+	static String getDeleteSql(String tableName)
 	{
 		String idNames[] = DatabaseConstant.getIdNames(tableName);
 		String sql = "delete from " + tableName + " where ";
-		for (int i = 0; i < idNames.length; i++)
+		for (int i = 0 ; i < idNames.length ; i++)
 		{
 			if (i > 0)
 			{
@@ -413,62 +423,12 @@ public class DBUtil
 	}
 
 	/**
-	 * 获取查询两个表的cols这些列值不同的记录的sql
-	 * :联合查询tbl1和tbl2,联合字段unionCols,查询两个表的cols这些列值不同的记录
-	 * :前提是unioncols和cols这些字段在两个表中均存在
-	 * @param tbl1
-	 * @param tbl2
-	 * @param unionCols
-	 * @param cols
-	 * @return
-	 */
-	public static String getDiffColsSql(String tbl1, String tbl2, String unionCols[], String cols[])
-	{
-		StringBuffer sqlBuf = new StringBuffer("select ");
-		for (String s : unionCols)
-		{
-			sqlBuf.append(tbl1 + "." + s + " as " + s + ",");
-		}
-		for (int i = 0; i < cols.length; i++)
-		{
-			if (i > 0)
-			{
-				sqlBuf.append(",");
-			}
-			//tbl1和tbl2的数据都查出来了，为的是能够根据结果集判断修改了哪一个列属性
-			sqlBuf.append(tbl1 + "." + cols[i]);
-			sqlBuf.append(",");
-			sqlBuf.append(tbl2 + "." + cols[i]);
-		}
-		sqlBuf.append(" from ");
-		sqlBuf.append(tbl1 + " join " + tbl2);
-		sqlBuf.append(" on ");
-		for (int i = 0; i < unionCols.length; i++)
-		{
-			if (i > 0)
-			{
-				sqlBuf.append(" and ");
-			}
-			sqlBuf.append(tbl1 + "." + unionCols[i] + "=" + tbl2 + "." + unionCols[i]);
-		}
-		sqlBuf.append(" where ");
-		for (int i = 0; i < cols.length; i++)
-		{
-			if (i > 0)
-			{
-				sqlBuf.append(" or ");
-			}
-			sqlBuf.append(tbl1 + "." + cols[i] + " <> " + tbl2 + "." + cols[i]);
-		}
-		return sqlBuf.toString();
-	}
-
-	/**
 	 * 在这里进行相关类型的转换，转换成程序方便处理的类型
-	 * @param rs
-	 * @param column
-	 * @return
-	 * @throws SQLException
+	 *
+	 * @param rs 结果集
+	 * @param column 列对象
+	 * @return 列值对象
+	 * @throws SQLException 数据库异常
 	 */
 	private static Object getObjectFormRS(ResultSet rs, Object column) throws SQLException
 	{
@@ -492,6 +452,11 @@ public class DBUtil
 		return objValueTurned;
 	}
 
+	/**
+	 * 参数Map部分值处理
+	 * @param paramNames 参数列名集合
+	 * @param params 参数Map
+	 */
 	private static void switchParamContent(List<String> paramNames, Map<String,Object> params)
 	{
 		if (paramNames == null || paramNames.size() == 0)
@@ -512,56 +477,5 @@ public class DBUtil
 				params.put(paramName, dateFormat.format((Date) obj));
 			}
 		}
-	}
-
-	/**
-	 * 通过UUID创建32位的数据ID
-	 * @return
-	 */
-	public static String createUUId()
-	{
-		return UUID.randomUUID().toString().substring(0, 32);
-	}
-
-	/**
-	 * 创建一个四位的code
-	 * @param db
-	 * @param tableName
-	 * @return
-	 */
-	public static String createCode(Database db, String tableName)
-	{
-		Map<String,Object> eveMap = new HashMap<>();
-		eveMap.put("DB", db);
-		return dw.db.code.util.MakeCodeUtil.getCode(eveMap, tableName, "code", "____");
-	}
-
-	/**
-	 * 创建制定个数的四位code
-	 * @param db
-	 * @param tableName
-	 * @param count
-	 * @return
-	 */
-	public static String[] createCodes(Database db, String tableName, int count)
-	{
-		Map<String,Object> eveMap = new HashMap<>();
-		eveMap.put("DB", db);
-		return MakeCodeUtil.getCodes(eveMap, tableName, "code", "____", count);
-	}
-
-	public static void main(String[] args)
-	{
-		//String sql = "insert into tablename values ('123:a123', :test)";
-		//parseParamSql(sql, null);
-		//		String sql = "update t1 set v=1";
-		//		System.out.println(getUpdateTableName(sql));
-		//String tbl1 = "tbldef";
-		//String tbl2 = "tbldef_old";
-		//String sql = getDiffColsSql(tbl1, tbl2, new String[] { "tblname" }, DatabaseConstant.tbldef_editable_cols);
-		//System.out.println(sql);
-		//System.out.println(getDeleteSql("flddef"));
-		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		System.out.println(dateFormat.format(new Date()));
 	}
 }

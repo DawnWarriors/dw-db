@@ -1,4 +1,4 @@
-package dw.db;
+package dw.db.trans;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import com.alibaba.druid.pool.DruidDataSourceFactory;
@@ -15,7 +15,7 @@ public class DatabaseManager
 	 * 后期可以修改为，通过配置文件中的 id 来获取指定的 DataSource，用于多个DataSource的情况
 	 * 在登陆时，根据登陆情况（用户类型等），选择合适的id，获取对应的DS，存储于session中，或者与session id结合存储于缓存
 	 */
-	private static DruidDataSource	dataSource	= null;
+	private static DruidDataSource dataSource = null;
 
 	private static DruidDataSource getDataSource()
 	{
@@ -35,9 +35,10 @@ public class DatabaseManager
 
 	/**
 	 * 创建DB实例
-	 * @return
+	 *
+	 * @return DBSession
 	 */
-	public static synchronized Database createDatabase()
+	static synchronized Database createDatabase()
 	{
 		if (dataSource == null)
 		{
@@ -59,9 +60,10 @@ public class DatabaseManager
 
 	/**
 	 * 关闭DB
-	 * @param db
+	 *
+	 * @param db 数据库Session对象
 	 */
-	public static void closeDatabase(Database db)
+	static void closeDatabase(Database db)
 	{
 		try
 		{

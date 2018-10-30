@@ -1,19 +1,25 @@
-package dw.db.util;
+package dw.db.base;
 
-import dw.db.Database;
-import dw.db.base.ModelBase;
-import dw.db.model.DBAnnotationModel;
-import dw.db.model.DBModelInfo;
 import dw.common.util.date.DateUtil;
 import dw.common.util.map.MapUtil;
 import dw.common.util.str.StrUtil;
+import dw.db.trans.Database;
+import dw.db.annotation.DwDbFld;
+import dw.db.annotation.DwDbTbl;
+import lombok.Data;
 
 import java.lang.reflect.Field;
 import java.util.*;
 
-public class DBModelUtil
+class ObjectProxyFactory
 {
 	private static final Map<String,DBModelInfo> dbModelInfos = new HashMap<>();
+
+	static String getTblName(Class<?> cls)
+	{
+		DBModelInfo dbModelInfo = getDBModelInfo(cls);
+		return dbModelInfo.getTblName();
+	}
 
 	/**
 	 * 根据Class获取注解配置的数据对象信息
@@ -21,7 +27,7 @@ public class DBModelUtil
 	 * @param cls
 	 * @return
 	 */
-	public static DBModelInfo getDBModelInfo(Class<?> cls)
+	static DBModelInfo getDBModelInfo(Class<?> cls)
 	{
 		DBModelInfo dbModelInfo = dbModelInfos.get(cls.getName());
 		if (dbModelInfo != null)
@@ -34,31 +40,6 @@ public class DBModelUtil
 	}
 
 	/**
-	 * 存入注解信息
-	 *
-	 * @param cls
-	 * @return
-	 */
-	private synchronized static DBModelInfo putDBModelInfo(Class<?> cls)
-	{
-		DBModelInfo dbModelInfo = dbModelInfos.get(cls.getName());
-		if (dbModelInfo != null)
-		{
-			return dbModelInfo;
-		}
-		dbModelInfo = new DBModelInfo();
-		DBAnnotationModel annotationModel = DBAnnotationUtil.getAnnotationModel(cls);
-		dbModelInfo.setTblName(DBAnnotationUtil.getTblName(annotationModel));
-		dbModelInfo.setFldNameInfos(DBAnnotationUtil.getFldNames(annotationModel));
-		dbModelInfo.setKeys(DBAnnotationUtil.getKeyMap(annotationModel));
-		dbModelInfo.setChildTblInfos(DBAnnotationUtil.getChildFldClsInfo(annotationModel));
-		dbModelInfo.setClassPath(cls.getName());
-		setSelectSql(dbModelInfo);
-		dbModelInfos.put(cls.getName(), dbModelInfo);
-		return dbModelInfo;
-	}
-
-	/**
 	 * 查询对象
 	 *
 	 * @param db
@@ -68,7 +49,7 @@ public class DBModelUtil
 	 * @param <T>
 	 * @return
 	 */
-	public static <T extends ModelBase> T queryObject(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
+	static <T extends ModelBase> T queryObject(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
 	{
 		return queryObject(db, cls, filter, paramGetter, false);
 	}
@@ -81,7 +62,7 @@ public class DBModelUtil
 	 * @param <T>
 	 * @return
 	 */
-	public static <T extends ModelBase> T queryObject_updateLock(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
+	static <T extends ModelBase> T queryObject_updateLock(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
 	{
 		return queryObject(db, cls, filter, paramGetter, true);
 	}
@@ -92,7 +73,7 @@ public class DBModelUtil
 	 * @param cls
 	 * @return
 	 */
-	public static <T extends ModelBase> T queryObject(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, boolean isLock)
+	static <T extends ModelBase> T queryObject(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, boolean isLock)
 	{
 		String before_time_begin = DateUtil.getCurDateTimeCS();
 		long before_begin = System.currentTimeMillis();
@@ -143,7 +124,7 @@ public class DBModelUtil
 		T objT = MapUtil.mapToObject(dataMap, cls);
 		objT.set_create_date((Date) dataMap.get("_create_date"));
 		objT.set_update_date((Date) dataMap.get("_update_date"));
-		objT.set_delete_flag((Integer)dataMap.get("_delete_flag"));
+		objT.set_delete_flag((Integer) dataMap.get("_delete_flag"));
 		//设置oldValue
 		Set<String> fldNames = dbModelInfo.getFldNames();
 		ModelBase modelBase = (ModelBase) objT;
@@ -167,7 +148,7 @@ public class DBModelUtil
 	 * @param paramGetter
 	 * @return
 	 */
-	public static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
+	static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter)
 	{
 		return queryObjects(db, cls, filter, paramGetter, 0, 0, null);
 	}
@@ -182,7 +163,7 @@ public class DBModelUtil
 	 * @param ordBy
 	 * @return
 	 */
-	public static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, String ordBy)
+	static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, String ordBy)
 	{
 		return queryObjects(db, cls, filter, paramGetter, 0, 0, ordBy);
 	}
@@ -199,7 +180,7 @@ public class DBModelUtil
 	 * @param ordBy       排序字段和方式
 	 * @return
 	 */
-	public static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, int pageNum, int pageSize, String ordBy)
+	static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, int pageNum, int pageSize, String ordBy)
 	{
 		String before_time_begin = DateUtil.getCurDateTimeCS();
 		long before_begin = System.currentTimeMillis();
@@ -286,7 +267,7 @@ public class DBModelUtil
 	 * @param paramGetter
 	 * @return
 	 */
-	public static long queryObjectCount(Database db, Class<?> cls, String filter, Map<String,Object> paramGetter)
+	static long queryObjectCount(Database db, Class<?> cls, String filter, Map<String,Object> paramGetter)
 	{
 		DBModelInfo dbModelInfo = getDBModelInfo(cls);
 		String sql = dbModelInfo.getSelectSql();
@@ -305,7 +286,7 @@ public class DBModelUtil
 	 * @param db
 	 * @param modelBase
 	 */
-	public static void update(Database db, ModelBase modelBase)
+	static void update(Database db, ModelBase modelBase)
 	{
 		if (modelBase.get_oldDataMap_().size() == 0)
 		{
@@ -388,7 +369,7 @@ public class DBModelUtil
 	 * @param db
 	 * @param modelBase
 	 */
-	public static void insert(Database db, ModelBase modelBase)
+	static void insert(Database db, ModelBase modelBase)
 	{
 		String before_time_begin = DateUtil.getCurDateTimeCS();
 		long before_begin = System.currentTimeMillis();
@@ -515,5 +496,190 @@ public class DBModelUtil
 		}
 		sql.append(" from " + tblName);
 		dbModelInfo.setSelectSql(sql.toString());
+	}
+
+	/**
+	 * 存入注解信息
+	 *
+	 * @param cls
+	 * @return
+	 */
+	private synchronized static DBModelInfo putDBModelInfo(Class<?> cls)
+	{
+		DBModelInfo dbModelInfo = dbModelInfos.get(cls.getName());
+		if (dbModelInfo != null)
+		{
+			return dbModelInfo;
+		}
+		dbModelInfo = new DBModelInfo();
+		DBAnnotationModel annotationModel = getAnnotationModel(cls);
+		dbModelInfo.setTblName(getTblName(annotationModel));
+		dbModelInfo.setFldNameInfos(getFldNames(annotationModel));
+		dbModelInfo.setKeys(getKeyMap(annotationModel));
+		dbModelInfo.setChildTblInfos(getChildFldClsInfo(annotationModel));
+		dbModelInfo.setClassPath(cls.getName());
+		setSelectSql(dbModelInfo);
+		dbModelInfos.put(cls.getName(), dbModelInfo);
+		return dbModelInfo;
+	}
+
+	/**
+	 * 获取DBModel的注解信息
+	 * @param cls
+	 * @return
+	 */
+	private static DBAnnotationModel getAnnotationModel(Class<?> cls)
+	{
+		DBAnnotationModel annotationModel = new DBAnnotationModel();
+		DwDbTbl fwDbTbl = cls.getAnnotation(DwDbTbl.class);
+		annotationModel.setDwDbTbl(fwDbTbl);
+		Field[] fileds = cls.getDeclaredFields();
+		for (Field field : fileds)
+		{
+			String fldName = field.getName();
+			DwDbFld fwDbFld = field.getAnnotation(DwDbFld.class);
+			if (fwDbFld != null)
+			{
+				annotationModel.addDwDbFld(fldName, fwDbFld);
+			}
+		}
+		return annotationModel;
+	}
+
+	/**
+	 * 根据注解信息，获取DBModel配置的表名
+	 * @param annotationModel
+	 * @return
+	 */
+	private static String getTblName(DBAnnotationModel annotationModel)
+	{
+		DwDbTbl fwDbTbl = annotationModel.getDwDbTbl();
+		return fwDbTbl.tblName();
+	}
+
+	/**
+	 * 根据注解信息，获取DBModel配置的属性名和字段名的映射Map
+	 * @param annotationModel
+	 * @return
+	 */
+	private static Map<String,String> getFldNames(DBAnnotationModel annotationModel)
+	{
+		Map<String,String> fldNameMap = new HashMap<>();
+		DwDbTbl fwDbTbl = annotationModel.getDwDbTbl();
+		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
+		Set<String> keys = fwDbFldMap.keySet();
+		for (String key : keys)
+		{
+			DwDbFld fwDbFld = fwDbFldMap.get(key);
+			//未配置子表类路径
+			if ("".equals(fwDbFld.childTblClsPath()) && fwDbFld.isFld())
+			{
+				String fldName = fwDbFld.fldName();
+				if ("".equals(fldName))
+				{
+					fldName = key;
+					//如果设置了转换小写
+					if (fwDbTbl.isAllFldLowerCase() || fwDbFld.isLowerCase())
+					{
+						fldName = fldName.toLowerCase();
+					}
+				}
+				fldNameMap.put(key, fldName);
+			}
+		}
+		fldNameMap.put("_update_date", "_update_date");
+		fldNameMap.put("_create_date", "_create_date");
+		fldNameMap.put("_delete_flag", "_delete_flag");
+		return fldNameMap;
+	}
+
+	/**
+	 * 根据注解信息获取子表类路径信息
+	 * @param annotationModel
+	 * @return
+	 */
+	private static Map<String,String> getChildFldClsInfo(DBAnnotationModel annotationModel)
+	{
+		Map<String,String> fldNameCls = new HashMap<>();
+		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
+		Set<String> keys = fwDbFldMap.keySet();
+		for (String key : keys)
+		{
+			DwDbFld fwDbFld = fwDbFldMap.get(key);
+			//配置子表类路径，且配置了子表加载过滤条件
+			if (!"".equals(fwDbFld.childTblClsPath()) && !"".equals(fwDbFld.childTblLoadFilter()))
+			{
+				String clsPath = fwDbFld.childTblClsPath();
+				String loadFilter = fwDbFld.childTblLoadFilter();
+				fldNameCls.put(key, clsPath);
+				fldNameCls.put(key + "$$FILTER", loadFilter);
+			}
+		}
+		return fldNameCls;
+	}
+
+	/**
+	 * 根据注解信息，获取配置的表的主键
+	 * @param annotationModel
+	 * @return
+	 */
+	private static Map<String,String> getKeyMap(DBAnnotationModel annotationModel)
+	{
+		Map<String,String> keyMap = new HashMap<>();
+		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
+		Set<String> keys = fwDbFldMap.keySet();
+		for (String key : keys)
+		{
+			DwDbFld fwDbFld = fwDbFldMap.get(key);
+			//未配置子表类路径
+			if (fwDbFld.isKey())
+			{
+				String fldName = fwDbFld.fldName();
+				if ("".equals(fldName))
+				{
+					fldName = key;
+				}
+				keyMap.put(key, fldName);
+			}
+		}
+		return keyMap;
+	}
+
+	/**
+	 * Model info 封装
+	 */
+	@Data
+	private static class DBModelInfo
+	{
+		private String             classPath;
+		private String             tblName;
+		private Map<String,String> fldNameInfos;
+		private Map<String,String> childTblInfos;
+		private Map<String,String> keys;
+		private String             selectSql;
+		private Set<String>        fldNames;
+
+		public void setFldNameInfos(Map<String,String> fldNameInfos)
+		{
+			this.fldNames = fldNameInfos.keySet();
+			this.fldNameInfos = fldNameInfos;
+		}
+	}
+
+	@Data
+	private static class DBAnnotationModel
+	{
+		Map<String,DwDbFld> dwDbFldMaps = new HashMap<>();
+		DwDbTbl             dwDbTbl     = null;
+
+		public Map<String,DwDbFld> getDwDbFlds()
+		{
+			return dwDbFldMaps;
+		}
+
+		public void addDwDbFld(String fldName, DwDbFld dwDbFld)
+		{
+			dwDbFldMaps.put(fldName, dwDbFld);
+		}
 	}
 }

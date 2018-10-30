@@ -1,6 +1,6 @@
-package dw.db.point;
+package dw.db.trans;
 
-import dw.db.Database;
+import dw.db.trans.Database;
 import dw.db.annotation.ServiceAutoTrans;
 import dw.db.trans.TransactionManager;
 import org.springframework.stereotype.Component;
@@ -32,15 +32,15 @@ public class ServiceDatabasePoint
 			//TODO 多库处理方案
 			boolean isNeedTrans = autoTrans.isNeedTrans();
 			boolean isNeedNewDbSession = autoTrans.isNeedNewDbSession();
-			TransactionManager transactionManager = new TransactionManager();
 			if(isNeedNewDbSession)
 			{
-				transactionManager.createNewDatabase(isNeedTrans);
+				TransactionManager.createNewDatabase(isNeedTrans);
 			}else{
-				Database db = transactionManager.getCurrentDatabase();
+				Database db = TransactionManager.getCurrentDatabase();
 				if(db==null)
 				{
-					transactionManager.createNewDatabase(isNeedTrans);
+					TransactionManager.createNewDatabase(isNeedTrans);
+					isNeedNewDbSession = true;
 				}
 			}
 			boolean isNeedRollback = true;
@@ -49,6 +49,7 @@ public class ServiceDatabasePoint
 			{
 				result = point.proceed(args);
 				isNeedRollback = false;
+				return result;
 			} catch (Throwable throwable)
 			{
 				throw throwable;
@@ -56,10 +57,9 @@ public class ServiceDatabasePoint
 			{
 				if (isNeedNewDbSession)
 				{
-					transactionManager.removeCurrentDatabase(isNeedRollback);
+					TransactionManager.removeCurrentDatabase(isNeedRollback);
 				}
 			}
-			return result;
 		}
 }
 

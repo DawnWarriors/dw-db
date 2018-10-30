@@ -1,52 +1,55 @@
 package dw.db.create;
 
-import dw.db.Database;
-import dw.db.DatabaseConstant;
-import dw.db.DatabaseManager;
-import dw.db.util.CreateTblUtil;
-import dw.db.util.DBUtil;
-import dw.db.util.SqlFilterUtil;
+import com.alibaba.druid.util.JdbcConstants;
 import dw.common.util.list.ListUtil;
 import dw.common.util.map.MapUtil;
 import dw.common.util.str.StrUtil;
+import dw.db.trans.DatabaseConstant;
+import dw.db.sql.SqlFilterUtil;
+import dw.db.trans.Database;
+import dw.db.trans.TransactionManager;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.sql.SQLException;
 import java.util.*;
 
 /**
  * 规定一般顺序限制为：include，define，tbldef_temp, flddef_temp, refdef, indexdef
- * 		include顺序限制：先引入一般表结构定义，再引入define文件
+ * include顺序限制：先引入一般表结构定义，再引入define文件
  * 顺序错误可能会导致define失效，flddef_temp找不到table.id
- * 
  * 通过新表旧表的对比，决定是新增还是删除还是更新（建删表，加删改字段、约束和索引）
  * 更新：先找出修改的所有列，然后再确定是那张表的那个字段做了哪些修改
- * 
  * 1、清空新表数据（通过脚本生成先清空新表，为了直接修改表信息也能作用到数据库，一切修改都是修改新表）
  * 2、存储表结构信息至新表
  * 3、根据新旧差异操作数据库（留出接口可直接从这步开始，为了能直接修改表信息）
  * 4、清空旧表数据，将新表数据复制一份到旧表
+ *
  * @author xins_cyf
  */
 public class CreateTbl
 {
-	private static String	tags[]			= { "#flddef", "#indexdef", "#refdef", "#tbldef", "#define", "#include" };
+	private       String tags[]        = { "#flddef", "#indexdef", "#refdef", "#tbldef", "#define", "#include" };
 	//与tags对应
-	private static String	tables_temp[]	= { "dw_fld_def_temp", "dw_index_def_temp", "dw_ref_def_temp", "dw_tbl_def_temp" };
+	private       String tables_temp[] = { "dw_fld_def_temp", "dw_index_def_temp", "dw_ref_def_temp", "dw_tbl_def_temp" };
 	//数据库脚本入口文件
-	private static final String entranceFile = "dw_tbl_base.txt";
-	//表可更新列定义
-	//字段可更新列定义
-	public static void work() throws Exception
+	private final String entranceFile  = "dw_tbl_base.txt";
+
+	/**
+	 * 数据库创建和更新入口
+	 *
+	 * @throws Exception 可能文件出错或者表操作出错，请根据控制台报错信息进行判断
+	 */
+	public void work() throws Exception
 	{
 		Map<String,String> defineMap = new HashMap<>();
 		Map<String,List<Map<String,String>>> defs = new HashMap<>();
 		String pathPre = CreateTbl.class.getClassLoader().getResource("").toURI().getPath() + "/dw/";
 		//约定总入口只有一个
 		getDBFileTree(entranceFile, defineMap, defs, pathPre);
-		Database db = DatabaseManager.createDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		//先清空临时表
 		for (String tbl : tables_temp)
 		{
@@ -70,7 +73,7 @@ public class CreateTbl
 			//--更新日期
 			addDefaultFld(defInfos, tblName, "997", "_update_date", "更新日期", "date", "8", "");
 		}
-		for (int i = 0; i < 4; i++)
+		for (int i = 0 ; i < 4 ; i++)
 		{
 			List<Map<String,String>> defInfos = defs.get(tags[i]);
 			for (Map<String,String> map : defInfos)
@@ -94,33 +97,21 @@ public class CreateTbl
 				db.insert2(tables_temp[i], map);
 			}
 		}
-		db.beginTrans();
-		boolean isNeedRollback = false;
-		try
-		{
-			updateTable(db, true);
-		} catch (Exception e)
-		{
-			//e.printStackTrace();
-			isNeedRollback = true;
-			throw new RuntimeException(e);
-		} finally
-		{
-			db.commitTrans(isNeedRollback);
-			DatabaseManager.closeDatabase(db);
-		}
+		updateTable(db, true);
 	}
 
 	/**
 	 * 获取一个文件所有引入的文件集合中所有的def信息
-	 * @param fileName
-	 * @param defineMap
-	 * @param defs
+	 *
+	 * @param fileName  字段名
+	 * @param defineMap 定义信息
+	 * @param defs      定义集合
+	 * @param pathPre   路径前缀
 	 */
-	public static void getDBFileTree(String fileName, Map<String,String> defineMap, Map<String,List<Map<String,String>>> defs, String pathPre)
+	private void getDBFileTree(String fileName, Map<String,String> defineMap, Map<String,List<Map<String,String>>> defs, String pathPre)
 	{
 		File file = new File(pathPre + fileName);
-		if(!file.exists())
+		if (!file.exists())
 		{
 			throw new RuntimeException("resources/dw/dw_tbl_base.txt文件未找到");
 		}
@@ -178,12 +169,15 @@ public class CreateTbl
 	 * table相关的定义，是针对所有文件的，要一次性读取完
 	 * define相关的，只处理当前文件
 	 * define的优先级：
-	 * 		当前文件中的定义优先级高于引入文件的定义；
-	 * 		后引入的文件优先级高于先引入的文件；
+	 * 当前文件中的定义优先级高于引入文件的定义；
+	 * 后引入的文件优先级高于先引入的文件；
 	 * 约定：所有的define都在指定的define文件里
-	 * @return
+	 *
+	 * @param fileName 文件名
+	 * @param file     文件内容
+	 * @return 引用文件信息
 	 */
-	private static List<String> getIncludeForOneFile(String fileName, String file)
+	private List<String> getIncludeForOneFile(String fileName, String file)
 	{
 		String startTag = "#include";
 		String lines[] = file.split("\n");
@@ -221,11 +215,12 @@ public class CreateTbl
 
 	/**
 	 * 获取一个文件的宏定义信息
-	 * @param fileName
-	 * @param file
-	 * @return
+	 *
+	 * @param fileName 文件名
+	 * @param file     文件内容
+	 * @return 宏定义信息
 	 */
-	private static Map<String,String> getDefineForOneFile(String fileName, String file)
+	private Map<String,String> getDefineForOneFile(String fileName, String file)
 	{
 		String startTag = "#define";
 		String lines[] = file.split("\n");
@@ -263,14 +258,15 @@ public class CreateTbl
 
 	/**
 	 * 获取file中的所有定义信息
-	 * @param filenames
-	 * @param file
-	 * @return
+	 *
+	 * @param filenames 文件名
+	 * @param file      文件内容
+	 * @return 全部定义信息
 	 */
-	private static Map<String,List<Map<String,String>>> getTagDefs(String filenames, String file)
+	private Map<String,List<Map<String,String>>> getTagDefs(String filenames, String file)
 	{
 		Map<String,List<Map<String,String>>> confInfos = new HashMap<>();
-		for (int i = 0; i < 4; i++)
+		for (int i = 0 ; i < 4 ; i++)
 		{
 			confInfos.put(tags[i], getTagDef(tags[i], filenames, file));
 		}
@@ -279,12 +275,13 @@ public class CreateTbl
 
 	/**
 	 * 单个文件单个tag
-	 * @param startTag
-	 * @param filenames
-	 * @param file
-	 * @return
+	 *
+	 * @param startTag  起始标记
+	 * @param filenames 文件名
+	 * @param file      文件内容
+	 * @return 单个标记信息
 	 */
-	private static List<Map<String,String>> getTagDef(String startTag, String filenames, String file)
+	private List<Map<String,String>> getTagDef(String startTag, String filenames, String file)
 	{
 		List<Map<String,String>> confInfo = new ArrayList<>();
 		String lines[] = file.split("\n");
@@ -321,7 +318,7 @@ public class CreateTbl
 				}
 				//封装结果
 				Map<String,String> lineDataMap = new HashMap<>();
-				for (int i = 0, len = definfo.length; i < len; i++)
+				for (int i = 0, len = definfo.length ; i < len ; i++)
 				{
 					if (i >= lineDatas.length)
 					{
@@ -343,11 +340,12 @@ public class CreateTbl
 
 	/**
 	 * 是否是一个标签的定义结束，根据一行的其实标签是否和上一个标签相同，如不同则说明是新标签
-	 * @param startTag
-	 * @param line
-	 * @return
+	 *
+	 * @param startTag 起始标记
+	 * @param line     一行内容
+	 * @return 是否是一个标签的定义结束
 	 */
-	private static boolean isTagEnd(String startTag, String line)
+	private boolean isTagEnd(String startTag, String line)
 	{
 		if (line == null || "".equals(line))
 		{
@@ -372,11 +370,12 @@ public class CreateTbl
 
 	/**
 	 * 获取定义数据，这里的定义数据指的是定义的列信息，写在#def后面的括号中的内容
-	 * @param tag
-	 * @param line
-	 * @return
+	 *
+	 * @param tag  标记
+	 * @param line 一行内容
+	 * @return 定义数据
 	 */
-	private static String[] getDefInfo(String tag, String line)
+	private String[] getDefInfo(String tag, String line)
 	{
 		if (line.startsWith(tag))
 		{
@@ -389,10 +388,11 @@ public class CreateTbl
 
 	/**
 	 * 输出异常信息，指出报错位置
-	 * @param fileName
-	 * @param lineIndex
+	 *
+	 * @param fileName  文件名
+	 * @param lineIndex 行号索引
 	 */
-	private static void throwError(String fileName, int lineIndex)
+	private void throwError(String fileName, int lineIndex)
 	{
 		throw new RuntimeException("文件" + fileName + "第" + lineIndex + "行错误：" + "定义错误!");
 	}
@@ -404,11 +404,11 @@ public class CreateTbl
 	 * 20：控制字段的新加和删除
 	 * 30：索引和关联的处理----TODO 暂放，可以放在2.0去做
 	 * 40：把def中得数据写到old里
-	 * @param db
-	 * @param isCleanAble	是否可以清空字段值，因为清空属于危险操作，所以建议手动去执行SQL，留下这个参数做接口
-	 * @throws Exception 
+	 *
+	 * @param db          数据库Session对象
+	 * @param isCleanAble 是否可以清空字段值，因为清空属于危险操作，所以建议手动去执行SQL，留下这个参数做接口
 	 */
-	private static void updateTable(Database db, boolean isCleanAble) throws Exception
+	private void updateTable(Database db, boolean isCleanAble)
 	{
 		//表的删除
 		dropTable(db);
@@ -453,10 +453,10 @@ public class CreateTbl
 
 	/**
 	 * 删除表
-	 * @param db
-	 * @throws Exception
+	 *
+	 * @param db 数据库Session对象
 	 */
-	private static void dropTable(Database db) throws Exception
+	private void dropTable(Database db)
 	{
 		String drop_tbl_sql = "select tblname from dw_tbl_def where tblname not in (select tblname from dw_tbl_def_temp)";
 		Object[] dropTbls = db.queryObject1Col(drop_tbl_sql, "tblname");
@@ -474,10 +474,10 @@ public class CreateTbl
 
 	/**
 	 * 新增表
-	 * @param db
-	 * @throws Exception
+	 *
+	 * @param db 数据库Session对象
 	 */
-	private static void addTable(Database db) throws Exception
+	private void addTable(Database db)
 	{
 		String add_tbl_sql = "select tblname from dw_tbl_def_temp where tblname not in (select tblname from dw_tbl_def)";
 		Object[] addTbls = db.queryObject1Col(add_tbl_sql, "tblname");
@@ -506,28 +506,28 @@ public class CreateTbl
 			for (Map<String,Object> map : addCols)
 			{
 				createTblSqlBuffer.append(map.get("fldname") + " ");
-				String typeInfo = CreateTblUtil.getTypeInfo(dbType, (String) map.get("fldtype"), map.get("fldlen").toString(), map.get("flddecimal").toString());
+				String typeInfo = getTypeInfo(dbType, (String) map.get("fldtype"), map.get("fldlen").toString(), map.get("flddecimal").toString());
 				createTblSqlBuffer.append(typeInfo);
 				//默认值
-				String defaultInfo = CreateTblUtil.getDefaultInfo(dbType, (String) map.get("flddefault"));
+				String defaultInfo = getDefaultInfo(dbType, (String) map.get("flddefault"));
 				if (defaultInfo != null)
 				{
 					createTblSqlBuffer.append(defaultInfo);
 				}
 				//not null
-				String notNullInfo = CreateTblUtil.getNotNullInfo(dbType, (String) map.get("fldattr"));
+				String notNullInfo = getNotNullInfo(dbType, (String) map.get("fldattr"));
 				if (notNullInfo != null)
 				{
 					createTblSqlBuffer.append(notNullInfo);
 				}
 				//唯一性
-				String uniqueInfo = CreateTblUtil.getUniqueInfo(dbType, (String) map.get("fldattr"));
+				String uniqueInfo = getUniqueInfo(dbType, (String) map.get("fldattr"));
 				if (uniqueInfo != null)
 				{
 					createTblSqlBuffer.append(uniqueInfo);
 				}
 				//判断是否是主键
-				boolean isPrimaryKey = CreateTblUtil.isPrimaryKey((String) map.get("fldattr"));
+				boolean isPrimaryKey = isPrimaryKey((String) map.get("fldattr"));
 				if (isPrimaryKey)
 				{
 					//TODO 约定只有单主键，多主键通过唯一性约束
@@ -535,7 +535,7 @@ public class CreateTbl
 				}
 				createTblSqlBuffer.append(",");
 			}
-			String primaryKeyExpr = CreateTblUtil.getPrimaryKeyExpr(dbType, tblName, keyCols);
+			String primaryKeyExpr = getPrimaryKeyExpr(dbType, tblName, keyCols);
 			createTblSqlBuffer.append(primaryKeyExpr + ")");
 			db.execute(createTblSqlBuffer.toString());
 			//执行更新定义表语句
@@ -548,12 +548,12 @@ public class CreateTbl
 
 	/**
 	 * 更新tbldef
-	 * @param db
-	 * @throws Exception
+	 *
+	 * @param db 数据库Session对象
 	 */
-	private static void updateTbl(Database db) throws Exception
+	private void updateTbl(Database db)
 	{
-		String update_tbl_sql = DBUtil.getDiffColsSql("dw_tbl_def_temp", "dw_tbl_def", new String[] { "tblname" }, DatabaseConstant.tbldef_editable_cols);
+		String update_tbl_sql = getDiffColsSql("dw_tbl_def_temp", "dw_tbl_def", new String[] { "tblname" }, DatabaseConstant.tbldef_editable_cols);
 		List<Map<String,Object>> updateTblMaps = db.queryListMap(update_tbl_sql);
 		//这里不需要判断更改了哪些字段值，全部更新掉即可，因为没有需要根据列的而改变进行的处理
 		for (Map<String,Object> map : updateTblMaps)
@@ -578,11 +578,11 @@ public class CreateTbl
 
 	/**
 	 * 新增列
-	 * @param db
-	 * @param addFld_strSet
-	 * @throws Exception
+	 *
+	 * @param db            数据库Session对象
+	 * @param addFld_strSet 添加字段字串
 	 */
-	private static void addCol(Database db, String addFld_strSet) throws Exception
+	private void addCol(Database db, String addFld_strSet)
 	{
 		if (addFld_strSet.equals(""))
 		{
@@ -603,22 +603,22 @@ public class CreateTbl
 			Map<String,Object> map = db.queryMap(getAddColsSql, params);
 			StringBuffer addColSqlBuf = new StringBuffer();
 			addColSqlBuf.append("alter table " + tblname + " add column " + fldname);
-			String typeInfo = CreateTblUtil.getTypeInfo(dbType, (String) map.get("fldtype"), map.get("fldlen").toString(), map.get("flddecimal").toString());
+			String typeInfo = getTypeInfo(dbType, (String) map.get("fldtype"), map.get("fldlen").toString(), map.get("flddecimal").toString());
 			addColSqlBuf.append(typeInfo);
 			//默认值
-			String defaultInfo = CreateTblUtil.getDefaultInfo(dbType, (String) map.get("flddefault"));
+			String defaultInfo = getDefaultInfo(dbType, (String) map.get("flddefault"));
 			if (defaultInfo != null)
 			{
 				addColSqlBuf.append(defaultInfo);
 			}
 			//not null
-			String notNullInfo = CreateTblUtil.getNotNullInfo(dbType, (String) map.get("fldattr"));
+			String notNullInfo = getNotNullInfo(dbType, (String) map.get("fldattr"));
 			if (notNullInfo != null)
 			{
 				addColSqlBuf.append(notNullInfo);
 			}
 			//唯一性
-			String uniqueInfo = CreateTblUtil.getUniqueInfo(dbType, (String) map.get("fldattr"));
+			String uniqueInfo = getUniqueInfo(dbType, (String) map.get("fldattr"));
 			if (uniqueInfo != null)
 			{
 				addColSqlBuf.append(uniqueInfo);
@@ -638,13 +638,13 @@ public class CreateTbl
 
 	/**
 	 * 更新列
-	 * @param db
-	 * @throws Exception
+	 *
+	 * @param db 数据库Session对象
 	 */
-	public static void updateCol(Database db) throws Exception
+	private void updateCol(Database db)
 	{
 		//联合查询的结果集中，mysql的会将后面重复的列名后面拼上序号，从1开始，至于其他数据库是不是这种情况，未作考证
-		String update_fld_sql = DBUtil.getDiffColsSql("dw_fld_def_temp", "dw_fld_def", new String[] { "tblname", "fldname" }, DatabaseConstant.flddef_editable_cols);
+		String update_fld_sql = getDiffColsSql("dw_fld_def_temp", "dw_fld_def", new String[] { "tblname", "fldname" }, DatabaseConstant.flddef_editable_cols);
 		List<Map<String,Object>> updateColMaps = db.queryListMap(update_fld_sql);
 		String dbType = db.getDbType();
 		for (Map<String,Object> map : updateColMaps)
@@ -654,27 +654,27 @@ public class CreateTbl
 			//更新后的列属性
 			StringBuffer newFldSqlBuf = new StringBuffer();
 			newFldSqlBuf.append(fldname);
-			String typeInfo = CreateTblUtil.getTypeInfo(dbType, map.get("fldtype").toString(), map.get("fldlen").toString(), map.get("flddecimal").toString());
+			String typeInfo = getTypeInfo(dbType, map.get("fldtype").toString(), map.get("fldlen").toString(), map.get("flddecimal").toString());
 			newFldSqlBuf.append(typeInfo);
 			//默认值
-			String defaultInfo = CreateTblUtil.getDefaultInfo(dbType, (String) map.get("flddefault"));
+			String defaultInfo = getDefaultInfo(dbType, (String) map.get("flddefault"));
 			if (defaultInfo != null)
 			{
 				newFldSqlBuf.append(defaultInfo);
 			}
 			//not null
-			String notNullInfo = CreateTblUtil.getNotNullInfo(dbType, (String) map.get("fldattr"));
+			String notNullInfo = getNotNullInfo(dbType, (String) map.get("fldattr"));
 			if (notNullInfo != null)
 			{
 				newFldSqlBuf.append(notNullInfo);
 			}
 			//唯一性
-			String uniqueInfo = CreateTblUtil.getUniqueInfo(dbType, (String) map.get("fldattr"));
+			String uniqueInfo = getUniqueInfo(dbType, (String) map.get("fldattr"));
 			if (uniqueInfo != null)
 			{
 				newFldSqlBuf.append(uniqueInfo);
 			}
-			String updateFldSql = CreateTblUtil.getUpdateColExpr(dbType, tblname, newFldSqlBuf);
+			String updateFldSql = getUpdateColExpr(dbType, tblname, newFldSqlBuf);
 			db.execute(updateFldSql);
 			//TODO 主键更新，约定只有一个主键，多主键通过唯一性进行约束，先删除旧主键然后添加新主键
 			//更新定义表
@@ -691,11 +691,11 @@ public class CreateTbl
 
 	/**
 	 * 删除列
-	 * @param db
-	 * @param dropFld_strSet
-	 * @throws Exception
+	 *
+	 * @param db             数据库Session对象
+	 * @param dropFld_strSet 删除列字段字串
 	 */
-	public static void delCol(Database db, String dropFld_strSet) throws Exception
+	private void delCol(Database db, String dropFld_strSet)
 	{
 		if (dropFld_strSet.equals(""))
 		{
@@ -724,16 +724,17 @@ public class CreateTbl
 
 	/**
 	 * 添加约定字段
-	 * @param defInfos
-	 * @param tblName
-	 * @param fldId
-	 * @param fldName
-	 * @param fldNameZh
-	 * @param fldType
-	 * @param fldLen
-	 * @param defaultVal
+	 *
+	 * @param defInfos   定义信息集合
+	 * @param tblName    表名
+	 * @param fldId      字段ID
+	 * @param fldName    字段名
+	 * @param fldNameZh  字段中文名
+	 * @param fldType    字段类型
+	 * @param fldLen     字段长度
+	 * @param defaultVal 默认字段值
 	 */
-	private static void addDefaultFld(List<Map<String,String>> defInfos, String tblName, String fldId, String fldName, String fldNameZh, String fldType, String fldLen, String defaultVal)
+	private void addDefaultFld(List<Map<String,String>> defInfos, String tblName, String fldId, String fldName, String fldNameZh, String fldType, String fldLen, String defaultVal)
 	{
 		Map<String,String> _del_fldInfo = new HashMap<>();
 		_del_fldInfo.put("tblname", tblName);
@@ -746,5 +747,222 @@ public class CreateTbl
 		_del_fldInfo.put("fldattr", "000000");
 		_del_fldInfo.put("flddefault", defaultVal);
 		defInfos.add(_del_fldInfo);
+	}
+
+	/**
+	 * 由于不同数据库所支持的数据类型不同，比如小数类型在不同数据库建表时类型关键字就不一样
+	 * 所以需要格局数据库类型做一个适配
+	 * 最终返回对应的类型信息
+	 *
+	 * @param dbtype     数据库类型
+	 * @param fldtype    字段类型
+	 * @param fldlen     字段长度
+	 * @param flddecimal 小数位长度
+	 * @return 浮点型数据创建SQL
+	 */
+	private String getTypeInfo(String dbtype, String fldtype, String fldlen, String flddecimal)
+	{
+		if (fldtype.equals("number"))
+		{
+			if (JdbcConstants.ORACLE.equals(dbtype))
+			{
+				return " " + fldtype + "(" + fldlen + "," + flddecimal + ")";
+			} else
+			{
+				return " float(" + fldlen + "," + flddecimal + ")";
+			}
+		} else if (fldtype.equals("date"))
+		{
+			return " datetime ";
+		} else if (fldtype.equals("varchar"))
+		{
+			if ("0".equals(fldlen))//最大长度
+			{
+				if (JdbcConstants.MYSQL.equals(dbtype))
+				{
+					return " text ";
+				} else
+				{
+					return " " + fldtype + "(max)";
+				}
+			}
+		}
+		if (!"0".equals(flddecimal))
+		{
+			return " " + fldtype + "(" + fldlen + "," + flddecimal + ")";
+		} else
+		{
+			return " " + fldtype + "(" + fldlen + ")";
+		}
+	}
+
+	/**
+	 * 主要用于处理特殊值，比如null和0
+	 *
+	 * @param dbtype     数据库类型
+	 * @param defaultVal 默认值
+	 * @return 默认值
+	 */
+	private String getDefaultInfo(String dbtype, String defaultVal)
+	{
+		if (defaultVal == null || defaultVal.equals("") || defaultVal.toLowerCase().equals("null"))
+		{
+			return "";
+		}
+		if (dbtype.equals(JdbcConstants.MYSQL))
+		{
+			return " default " + defaultVal + "";
+		}
+		return " default(" + defaultVal + ")";
+	}
+
+	/**
+	 * 根据列限制属性，判断是否非空
+	 *
+	 * @param dbtype  数据库类型
+	 * @param fldattr 字段属性
+	 * @return 是否非空
+	 */
+	private String getNotNullInfo(String dbtype, String fldattr)
+	{
+		if (fldattr.charAt(5) == '1')
+		{
+			return " not null";
+		}
+		return null;
+	}
+
+	/**
+	 * 根据列限制属性，判断是否是主键
+	 *
+	 * @param fldattr 字段属性
+	 * @return 是否是主键
+	 */
+	private boolean isPrimaryKey(String fldattr)
+	{
+		if (fldattr.charAt(4) == '1')
+		{
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * 根据列限制属性，判断是否唯一
+	 *
+	 * @param dbtype  字段类型
+	 * @param fldattr 字段属性
+	 * @return 是否唯一
+	 */
+	private String getUniqueInfo(String dbtype, String fldattr)
+	{
+		if (fldattr.charAt(3) == '1')
+		{
+			return " unique";
+		}
+		return null;
+	}
+
+	/**
+	 * 获取设置主键语句
+	 *
+	 * @param dbtype  数据库类型
+	 * @param tblName 表名
+	 * @param keyCols 主键字段
+	 * @return 设置主键语句
+	 */
+	private String getPrimaryKeyExpr(String dbtype, String tblName, List<String> keyCols)
+	{
+		if (keyCols == null || keyCols.size() == 0)
+		{
+			throw new RuntimeException("表" + tblName + "未设置主键!");
+		}
+		String expr = "primary key(";
+		for (int i = 0 ; i < keyCols.size() ; i++)
+		{
+			if (i > 0)
+			{
+				expr += ",";
+			}
+			expr += keyCols.get(i);
+		}
+		expr += ")";
+		return expr;
+	}
+
+	/**
+	 * 更新表语句
+	 *
+	 * @param dbType       数据库类型
+	 * @param tblname      表名
+	 * @param newFldSqlBuf 新SQL字符串
+	 * @return 更新表语句
+	 */
+	private String getUpdateColExpr(String dbType, String tblname, StringBuffer newFldSqlBuf)
+	{
+		StringBuffer updateFldSqlBuf = new StringBuffer();
+		updateFldSqlBuf.append("alter table " + tblname);
+		if (JdbcConstants.MYSQL.equals(dbType) || JdbcConstants.ORACLE.equals(dbType))
+		{
+			updateFldSqlBuf.append(" modify ");
+			updateFldSqlBuf.append(newFldSqlBuf);
+		} else if (JdbcConstants.MYSQL.equals(dbType))
+		{
+			updateFldSqlBuf.append(" alter column ");
+			updateFldSqlBuf.append(newFldSqlBuf);
+		}
+		return updateFldSqlBuf.toString();
+	}
+
+	/**
+	 * 获取查询两个表的cols这些列值不同的记录的sql
+	 * :联合查询tbl1和tbl2,联合字段unionCols,查询两个表的cols这些列值不同的记录
+	 * :前提是unioncols和cols这些字段在两个表中均存在
+	 *
+	 * @param tbl1      实际表
+	 * @param tbl2      临时表
+	 * @param unionCols 联合查询列
+	 * @param cols      列
+	 * @return 对比SQL
+	 */
+	private String getDiffColsSql(String tbl1, String tbl2, String unionCols[], String cols[])
+	{
+		StringBuffer sqlBuf = new StringBuffer("select ");
+		for (String s : unionCols)
+		{
+			sqlBuf.append(tbl1 + "." + s + " as " + s + ",");
+		}
+		for (int i = 0 ; i < cols.length ; i++)
+		{
+			if (i > 0)
+			{
+				sqlBuf.append(",");
+			}
+			//tbl1和tbl2的数据都查出来了，为的是能够根据结果集判断修改了哪一个列属性
+			sqlBuf.append(tbl1 + "." + cols[i]);
+			sqlBuf.append(",");
+			sqlBuf.append(tbl2 + "." + cols[i]);
+		}
+		sqlBuf.append(" from ");
+		sqlBuf.append(tbl1 + " join " + tbl2);
+		sqlBuf.append(" on ");
+		for (int i = 0 ; i < unionCols.length ; i++)
+		{
+			if (i > 0)
+			{
+				sqlBuf.append(" and ");
+			}
+			sqlBuf.append(tbl1 + "." + unionCols[i] + "=" + tbl2 + "." + unionCols[i]);
+		}
+		sqlBuf.append(" where ");
+		for (int i = 0 ; i < cols.length ; i++)
+		{
+			if (i > 0)
+			{
+				sqlBuf.append(" or ");
+			}
+			sqlBuf.append(tbl1 + "." + cols[i] + " <> " + tbl2 + "." + cols[i]);
+		}
+		return sqlBuf.toString();
 	}
 }

@@ -10,14 +10,12 @@ import java.lang.annotation.Target;
 public @interface DwDbTbl
 {
 	/**
-	 * 表名
-	 * @return
+	 * @return 表名
 	 */
 	public String tblName() default "";
 
 	/**
-	 * 字段名是否统一转换为小写
-	 * @return
+	 * @return 字段名是否统一转换为小写
 	 */
 	public boolean isAllFldLowerCase() default false;
 }

@@ -1,20 +1,26 @@
-package dw.db.create;
+package dw.code.util;
 
 import dw.common.util.str.StrUtil;
-import dw.db.Database;
-import dw.db.DatabaseManager;
-import dw.db.util.SqlFilterUtil;
+import dw.db.trans.Database;
+import dw.db.trans.DatabaseManager;
+import dw.db.sql.SqlFilterUtil;
+import dw.db.trans.TransactionManager;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.util.*;
 
-public class CreateModel
+public class CreateModelUtil
 {
 	private final String               lineSeparator  = System.getProperty("line.separator");
 	private final String               baseDir        = System.getProperty("user.dir") + "/src/main/java/";
 	private       Map<String,String[]> modelClassInfo = new HashMap<>();
 
+	/**
+	 * 创建Model java文件
+	 * @param modelDirInfo Model包路径配置信息
+	 * @return Model类信息
+	 */
 	public Map<String,String[]> work(Map<String,List<String>> modelDirInfo)
 	{
 		if (modelDirInfo == null || modelDirInfo.size() == 0)
@@ -46,7 +52,7 @@ public class CreateModel
 	{
 		String packageDir = baseDir + packageStr.replaceAll("\\.", "/");
 		checkDirExist(packageDir);
-		Database db = DatabaseManager.createDatabase();
+		Database db = TransactionManager.getCurrentDBSession();
 		Map<String,Object> paramGetter = new HashMap<>();
 		String filter = SqlFilterUtil.getInFilter("tblname", tblNameList, paramGetter);
 		String sql = "select tblid,tblname,tblname_zh from dw_tbl_def where " + filter;
@@ -68,7 +74,7 @@ public class CreateModel
 			getAllFldInfo(fldInfos, importInfoList, fldInfoList);
 			fileWriteIn(className, packageDir, packageStr, importInfoList, classInfoList, fldInfoList);
 			//记录modelClassInfo
-			String classInfo[] = new String[] { packageStr + "." + className, className + ".class" };
+			String classInfo[] = new String[] { packageStr + "." + className, className + ".class",className};
 			modelClassInfo.put(tblName, classInfo);
 		}
 	}

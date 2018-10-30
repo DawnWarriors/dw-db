@@ -1,17 +1,12 @@
-package dw.db;
+package dw.db.trans;
 
 import com.alibaba.druid.sql.PagerUtils;
 import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
-import dw.db.config.DBConfig;
-import dw.db.model.SqlParameter;
-import dw.db.util.DBUtil;
+import dw.db.sql.SqlParameter;
 import dw.common.util.date.DateUtil;
 import dw.common.util.num.IntUtil;
-import dw.common.util.str.StrUtil;
 
 import javax.sql.DataSource;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -24,16 +19,15 @@ import java.util.Map;
 /**
  * @author 曹燕飞
  */
-//TODO 指定列名的update操作
 //查询分页：只需在参数paramGetter中设置以下参数即可：
 //		SQL.PAGE.OFFSET:偏移量
 //		SQL.PAGE.SIZE:每页大小
 //TODO 查询以及更新的缓存操作
 public class Database
 {
-	Connection	con			= null;
-	DataSource	dataSource	= null;
-	String		dbType		= null;
+	Connection con        = null;
+	DataSource dataSource = null;
+	String     dbType     = null;
 
 	/**
 	 * 通过DatabaseManager获取实例
@@ -50,8 +44,9 @@ public class Database
 	}
 
 	/**
-	 * 获取数据库类型
-	 * @return
+	 * 获取数据库类型，参考：com.alibaba.druid.util.JdbcConstants
+	 *
+	 * @return 数据库类型
 	 */
 	public String getDbType()
 	{
@@ -59,12 +54,13 @@ public class Database
 	}
 
 	/**
-	 * 查询结果放入Map<String,List<Map<String,Object>>>
+	 * 查询结果放入Map&lt;String,List&lt;Map&lt;String,Object&gt;&gt;&gt;
 	 * 外层Map的key是指定列的值，如果有多个列，则列值以“@”连接
-	 * @param sql
-	 * @param paramGetter
-	 * @param keyCols
-	 * @return
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @param keyCols     用来作为结果集分组的列名数组
+	 * @return 返回分组结果集
 	 */
 	public Map<String,List<Map<String,Object>>> queryMapListMap(String sql, Map<String,Object> paramGetter, String keyCols[])
 	{
@@ -73,7 +69,7 @@ public class Database
 		for (Map<String,Object> map : listMap)
 		{
 			String key = "";
-			for (int i = 0; i < keyCols.length; i++)
+			for (int i = 0 ; i < keyCols.length ; i++)
 			{
 				if (i > 0)
 				{
@@ -91,10 +87,11 @@ public class Database
 	}
 
 	/**
-	 * 查询结果放入List<Map>
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 * 查询结果放入MapList
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 查询结果列表
 	 */
 	public List<Map<String,Object>> queryListMap(String sql, Map<String,Object> paramGetter)
 	{
@@ -110,8 +107,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @return
+	 * 查询结果放入MapList
+	 *
+	 * @param sql 查询SQL，调用者拼装的SQL语句
+	 * @return 查询结果列表
 	 */
 	public List<Map<String,Object>> queryListMap(String sql)
 	{
@@ -120,9 +119,11 @@ public class Database
 
 	/**
 	 * 以主键值为key，将结果集放入map
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 *
+	 * @param tableName   表名 数据表名
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 以主键值为key的结果集合
 	 */
 	public Map<String,Map<String,Object>> queryMapMap(String tableName, String sql, Map<String,Object> paramGetter)
 	{
@@ -138,9 +139,11 @@ public class Database
 	}
 
 	/**
-	 * @param tableName
-	 * @param sql
-	 * @return
+	 * 以主键值为key，将结果集放入map
+	 *
+	 * @param tableName 表名
+	 * @param sql       查询SQL
+	 * @return 以主键值为key的结果集合
 	 */
 	public Map<String,Map<String,Object>> queryMapMap(String tableName, String sql)
 	{
@@ -149,9 +152,10 @@ public class Database
 
 	/**
 	 * 查询结果放入Map
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 结果Map
 	 */
 	public Map<String,Object> queryMap(String sql, Map<String,Object> paramGetter)
 	{
@@ -172,8 +176,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @return
+	 * 查询结果放入Map
+	 *
+	 * @param sql 查询SQL
+	 * @return 结果Map
 	 */
 	public Map<String,Object> queryMap(String sql)
 	{
@@ -182,9 +188,10 @@ public class Database
 
 	/**
 	 * 查询结果放入Object二维数组
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 结果数组
 	 */
 	public Object[][] queryObject2(String sql, Map<String,Object> paramGetter)
 	{
@@ -200,8 +207,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @return
+	 * 查询结果放入Object二维数组
+	 *
+	 * @param sql 查询SQL
+	 * @return 结果数组
 	 */
 	public Object[][] queryObject2(String sql)
 	{
@@ -209,10 +218,11 @@ public class Database
 	}
 
 	/**
-	 * 查询结果放入Object一维数组
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 * 查一行，查询结果放入Object一维数组
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 结果数组
 	 */
 	public Object[] queryOjbect1Row(String sql, Map<String,Object> paramGetter)
 	{
@@ -228,8 +238,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @return
+	 * 查一行，查询结果放入Object一维数组
+	 *
+	 * @param sql 查询SQL
+	 * @return 结果数组
 	 */
 	public Object[] queryObject1Row(String sql)
 	{
@@ -237,11 +249,12 @@ public class Database
 	}
 
 	/**
-	 * 获取指定列数据
-	 * @param sql
-	 * @param colName
-	 * @param paramGetter
-	 * @return
+	 * 查一列，获取指定列数据
+	 *
+	 * @param sql         查询SQL
+	 * @param colName     列名
+	 * @param paramGetter 查询参数封装Map
+	 * @return 结果数组
 	 */
 	public Object[] queryObject1Col(String sql, String colName, Map<String,Object> paramGetter)
 	{
@@ -257,10 +270,11 @@ public class Database
 	}
 
 	/**
-	 * 获取指定列数据
-	 * @param sql
-	 * @param colName
-	 * @return
+	 * 查一列，获取指定列数据
+	 *
+	 * @param sql     查询SQL
+	 * @param colName 列名
+	 * @return 结果数组
 	 */
 	public Object[] queryObject1Col(String sql, String colName)
 	{
@@ -269,9 +283,10 @@ public class Database
 
 	/**
 	 * 查询结果为一个Object
-	 * @param sql
-	 * @param paramGetter
-	 * @return
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 查询结果
 	 */
 	public Object queryObject(String sql, Map<String,Object> paramGetter)
 	{
@@ -284,8 +299,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @return
+	 * 查询结果为一个Object
+	 *
+	 * @param sql 查询SQL
+	 * @return 查询结果
 	 */
 	public Object queryObject(String sql)
 	{
@@ -293,10 +310,9 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @param paramGetter
-	 * @return
-	 * @throws Exception 
+	 * @param sql         SQL语句
+	 * @param paramGetter 查询参数封装Map
+	 * @return 更新影响行数
 	 */
 	public int update1(String sql, Map<String,Object> paramGetter)
 	{
@@ -312,42 +328,37 @@ public class Database
 
 	/**
 	 * 使用默认主键名更新表
-	 * @param tableName
-	 * @param params
-	 * @return
-	 * @throws Exception 
+	 *
+	 * @param tableName   表名
+	 * @param paramGetter 查询参数封装Map
+	 * @return 更新影响行数
 	 */
-	public int update2(String tableName, Map<String,Object> params)
+	public int update2(String tableName, Map<String,Object> paramGetter)
 	{
-		try
-		{
-			String sql = DBUtil.getUpdateSql(dataSource, tableName, params, DatabaseConstant.getIdNames(tableName));
-			SqlParameter sqlParameter = DBUtil.parseParamSql(sql, params);
-			return executeUpdate(sqlParameter);
-		} catch (Exception e)
-		{
-			throw new RuntimeException(e);
-		}
+		String sql = DBUtil.getUpdateSql(dataSource, tableName, paramGetter, DatabaseConstant.getIdNames(tableName));
+		SqlParameter sqlParameter = DBUtil.parseParamSql(sql, paramGetter);
+		return executeUpdate(sqlParameter);
 	}
 
 	/**
-	 * @param sql
-	 * @param paramGetter
-	 * @throws Exception
+	 * 执行数据插入
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
 	 */
-	public void insert1(String sql, Map<String,Object> paramGetter) throws Exception
+	public void insert1(String sql, Map<String,Object> paramGetter)
 	{
 		SqlParameter sqlParameter = DBUtil.parseParamSql(sql, paramGetter);
 		executeOther(sqlParameter);
 	}
 
 	/**
-	 * @param <T>
-	 * @param tableName
-	 * @param params
-	 * @throws Exception 
+	 * 执行数据插入
+	 *
+	 * @param tableName 表名
+	 * @param params    需要更新的列名与值对应的Map集合
+	 * @param <T> 列值参数对象
 	 */
-	@SuppressWarnings("unchecked")
 	public <T> void insert2(String tableName, Map<String,T> params)
 	{
 		String sql = DBUtil.getInsertSql(tableName, params);
@@ -357,9 +368,9 @@ public class Database
 
 	/**
 	 * 执行删除
-	 * @param tableName
-	 * @param params
-	 * @throws Exception
+	 *
+	 * @param tableName 表名
+	 * @param params    删除数据参数设置
 	 */
 	public void delete(String tableName, Map<String,Object> params)
 	{
@@ -369,9 +380,10 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @param paramGetter
-	 * @throws Exception
+	 * SQL执行
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
 	 */
 	public void execute(String sql, Map<String,Object> paramGetter)
 	{
@@ -380,8 +392,9 @@ public class Database
 	}
 
 	/**
-	 * @param sql
-	 * @throws Exception 
+	 * SQL执行
+	 *
+	 * @param sql 查询SQL
 	 */
 	public void execute(String sql)
 	{
@@ -390,10 +403,10 @@ public class Database
 
 	/**
 	 * 获取查询数据总数
-	 * @param sql
-	 * @param paramGetter
-	 * @return
-	 * @throws Exception
+	 *
+	 * @param sql         查询SQL
+	 * @param paramGetter 查询参数封装Map
+	 * @return 数据条数
 	 */
 	public long getCount(String sql, Map<String,Object> paramGetter)
 	{
@@ -408,15 +421,14 @@ public class Database
 
 	/**
 	 * 获取查询数据总数
-	 * @param sql
-	 * @return
-	 * @throws Exception
+	 *
+	 * @param sql 查询SQL
+	 * @return 数据条数
 	 */
 	public long getCount(String sql)
 	{
 		return getCount(sql, null);
 	}
-
 	/*********************************** 事务处理 ***********************************/
 	/**
 	 * 事务开始
@@ -434,6 +446,8 @@ public class Database
 
 	/**
 	 * 事务提交
+	 *
+	 * @param isNeedRollback 是否回滚事务
 	 */
 	public void commitTrans(boolean isNeedRollback)
 	{
@@ -451,15 +465,14 @@ public class Database
 			throw new RuntimeException(e);
 		}
 	}
-
 	/********************************* 私有方法 ***********************************/
 	/**
 	 * 查询执行，返回查询结果集
-	 * @param parameter
-	 * @return
-	 * @throws Exception 
+	 *
+	 * @param parameter SQL参数对象
+	 * @return 查询结果集
 	 */
-	private ResultSet executeSelect(SqlParameter parameter) throws Exception
+	private ResultSet executeSelect(SqlParameter parameter)
 	{
 		Object obj = exceuteCommon(parameter, 1);
 		if (obj == null)
@@ -471,11 +484,11 @@ public class Database
 
 	/**
 	 * 更新执行，返回影响行数
-	 * @param parameter
-	 * @return
-	 * @throws Exception 
+	 *
+	 * @param parameter SQL参数对象
+	 * @return 更新影响行数
 	 */
-	private int executeUpdate(SqlParameter parameter) throws Exception
+	private int executeUpdate(SqlParameter parameter)
 	{
 		Object obj = exceuteCommon(parameter, 2);
 		if (obj == null)
@@ -487,9 +500,9 @@ public class Database
 
 	/**
 	 * 删除或插入
-	 * @param parameter
-	 * @return
-	 * @throws Exception 
+	 *
+	 * @param parameter SQL参数对象
+	 * @return 执行是否成功标志
 	 */
 	private boolean executeOther(SqlParameter parameter)
 	{
@@ -503,16 +516,15 @@ public class Database
 
 	/**
 	 * SQL执行通用
-	 * @param parameter
-	 * @param option 1：查询	2：更新	3：其他
-	 * @return
-	 * @throws Exception 
+	 *
+	 * @param parameter SQLParameter对象
+	 * @param option    1：查询	2：更新	3：其他
+	 * @return 执行结果
 	 */
 	private Object exceuteCommon(SqlParameter parameter, int option)
 	{
 		try
 		{
-
 			List<String> keys = parameter.getParamNames();
 			Map<String,Object> paramGetter = parameter.getParams();
 			String sql = parameter.getSql();
@@ -536,7 +548,7 @@ public class Database
 			PreparedStatement preparedStatement = con.prepareStatement(sql);
 			if (keys != null && paramGetter != null)
 			{
-				for (int i = 0, len = keys.size(); i < len; i++)
+				for (int i = 0, len = keys.size() ; i < len ; i++)
 				{
 					String key = keys.get(i);
 					preparedStatement.setObject(i + 1, paramGetter.get(key));
@@ -566,29 +578,8 @@ public class Database
 			//Logger.info("SQL:",sql);
 			//Logger.info("SQL执行:",sql_begin_time+"——"+sql_end_time+"(ST:"+(sql_end-sql_begin)+"ms)");
 			//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
-			if (DBConfig.isUseCache())
-			{
-
-				//清除缓存
-				String tableName = DBUtil.getUpdateTableName(sql);
-				if (!StrUtil.isStrTrimNull(tableName))
-				{
-					String cache_begin_time = DateUtil.getCurDateTimeCS();
-					long cache_begin = System.currentTimeMillis();
-					//DBCacheUtil.emptyTableSqlCache(tableName);
-					//使用反射调用
-					String className = "fm.db.util.DBCacheUtil";
-					String methodName = "emptyTableSqlCache";
-					Class<?> cls = Class.forName(className);
-					Method method = cls.getMethod(methodName, new Class[] { String.class });
-					method.invoke(cls, tableName);
-					String cache_end_time = DateUtil.getCurDateTimeCS();
-					long cache_end = System.currentTimeMillis();
-					//Logger.info("表更新时缓存处理:",cache_begin_time+"——"+cache_end_time+"(ST:"+(cache_end-cache_begin)+"ms)");
-				}
-			}
 			return result;
-		} catch (SQLException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | ClassNotFoundException | NoSuchMethodException | SecurityException e)
+		} catch (SQLException | IllegalArgumentException | SecurityException e)
 		{
 			//链接失效，重新获取连接
 			if (e instanceof CommunicationsException)
@@ -614,19 +605,21 @@ public class Database
 
 	/**
 	 * 连接是否已关闭
-	 * @return
-	 * @throws Exception
+	 *
+	 * @return 数据库关闭状态
+	 * @throws SQLException 数据库异常
 	 */
-	public boolean isClosed() throws Exception
+	public boolean isClosed() throws SQLException
 	{
 		return con.isClosed();
 	}
 
 	/**
 	 * 关闭连接
-	 * @throws Exception
+	 *
+	 * @throws SQLException 数据库异常
 	 */
-	public void close() throws Exception
+	public void close() throws SQLException
 	{
 		if (!isClosed())
 		{
