@@ -219,7 +219,6 @@ public class PageInfo
 > 扩展案例
     
 ```java
-@DwDao
 @Component
 public class SysUserDao extends DaoBase
 {
@@ -228,11 +227,11 @@ public class SysUserDao extends DaoBase
 		super("sys_user",SysUserModel.class);
 	}
 
-	@DaoAutoDatabase
-	public void test(Database db)
-	{
-		db.execute("select count(id) from student");
-	}
+	public void test()
+    {
+        Database database = TransactionManager.getCurrentDBSession();
+        database.execute("select count(1) from student");
+    }
 }
 ```
 

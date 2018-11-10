@@ -63,7 +63,6 @@ public class CreateDaoUtil
 	private void getClassInfo(String className, List<String> classInfoList, String modelClassName)
 	{
 		classInfoList.add("//createDate:" + (new Date()).toString());
-		classInfoList.add("@DwDao");
 		classInfoList.add("@Component");
 		classInfoList.add("public class " + className + " extends DaoBase<" + modelClassName + ">");
 	}
