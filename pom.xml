@@ -1,12 +1,12 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.dw.db</groupId>
+    <groupId>com.dawnwarriors</groupId>
     <artifactId>dw-db</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0</version>
     <packaging>jar</packaging>
-
     <name>dw-db</name>
+    <url>https://github.com/DawnWarriors/dw-db</url>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -14,6 +14,36 @@
         <version>2.0.1.RELEASE</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
+
+    <scm>
+        <url>https://github.com/DawnWarriors/dw-db</url>
+        <connection>scm:git:https://github.com/DawnWarriors/dw-db.git</connection>
+        <developerConnection>scm:git:https://github.com/DawnWarriors/dw-db.git</developerConnection>
+        <tag>dw-db-1.0</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <name>cyf2018</name>
+            <email>cyf2018@sina.com</email>
+        </developer>
+    </developers>
+
+    <properties>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <distributionManagement>
+        <snapshotRepository>
+            <id>oss</id>
+            <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+        </snapshotRepository>
+        <repository>
+            <id>oss</id>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
+        </repository>
+    </distributionManagement>
 
     <dependencies>
         <dependency>
@@ -68,36 +98,4 @@
         </dependency>
     </dependencies>
 
-    <properties>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>snapshots</id>
-            <name>nexus</name>
-            <url>http://192.168.0.80:8080/nexus/content/groups/public/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>true</enabled>
-                <updatePolicy>always</updatePolicy>
-                <checksumPolicy>warn</checksumPolicy>
-            </snapshots>
-        </repository>
-    </repositories>
-
-    <distributionManagement>
-        <repository>
-            <id>releases</id>
-            <name>nexus releases</name>
-            <url>http://192.168.0.80:8080/nexus/content/repositories/releases</url>
-        </repository>
-        <snapshotRepository>
-            <id>snapshots</id>
-            <name>nexus snapshots</name>
-            <url>http://192.168.0.80:8080/nexus/content/repositories/snapshots</url>
-        </snapshotRepository>
-    </distributionManagement>
 </project>
