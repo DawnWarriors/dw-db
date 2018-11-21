@@ -135,9 +135,9 @@ dwDaoDirDef:            #dao包路径
 ### 1.新建Spring-boot2测试工程，在POM文件中引入dw-db
 ```
 <dependency>
-    <groupId>org.dw.db</groupId>
+    <groupId>com.dawnwarriors</groupId>
     <artifactId>dw-db</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0</version>
 </dependency>
 ```
 ### 2.创建新的数据库，并在resources/dw文件夹下编写druid.properties配置文件
