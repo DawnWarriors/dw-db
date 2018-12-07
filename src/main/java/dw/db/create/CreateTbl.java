@@ -113,7 +113,7 @@ public class CreateTbl
 		File file = new File(pathPre + fileName);
 		if (!file.exists())
 		{
-			throw new RuntimeException("resources/dw/dw_tbl_base.txt文件未找到");
+			throw new RuntimeException(fileName+":文件未找到");
 		}
 		InputStreamReader reader = null;
 		try

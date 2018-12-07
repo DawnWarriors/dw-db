@@ -54,7 +54,6 @@ public class CreateDaoUtil
 
 	private void getImportInfo(List<String> importInfoList, String modelClassPath)
 	{
-		importInfoList.add("import dw.db.annotation.DwDao;");
 		importInfoList.add("import dw.db.base.DaoBase;");
 		importInfoList.add("import org.springframework.stereotype.Component;");
 		importInfoList.add("import " + modelClassPath + ";");

@@ -1,12 +1,17 @@
 package dw.db.base;
 
-import dw.common.util.date.DateUtil;
 import dw.common.util.map.MapUtil;
 import dw.common.util.str.StrUtil;
-import dw.db.trans.Database;
 import dw.db.annotation.DwDbFld;
+import dw.db.annotation.DwDbSub;
 import dw.db.annotation.DwDbTbl;
+import dw.db.constant.DwDbConstant;
+import dw.db.proxy.DwModelProxyFactory;
+import dw.db.trans.Database;
+import dw.db.util.DBSubsetUtil;
+import dw.db.util.DwSpringUtil;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -75,8 +80,6 @@ class ObjectProxyFactory
 	 */
 	static <T extends ModelBase> T queryObject(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, boolean isLock)
 	{
-		String before_time_begin = DateUtil.getCurDateTimeCS();
-		long before_begin = System.currentTimeMillis();
 		DBModelInfo dbModelInfo = getDBModelInfo(cls);
 		String sql = dbModelInfo.getSelectSql();
 		if (!StrUtil.isStrTrimNull(filter))
@@ -87,41 +90,31 @@ class ObjectProxyFactory
 		{
 			sql += " for update";
 		}
-		String before_time_end = DateUtil.getCurDateTimeCS();
-		long before_end = System.currentTimeMillis();
-		//Logger.info("对象查询SQL生成:", before_time_begin + "——" + before_time_end + "(ST:" + (before_end - before_begin) + "ms)");
-		//TODO 通用日志记录方案
+		return queryObjectBySql(db, cls, sql, paramGetter);
+	}
+
+	/**
+	 * 自定义SQL查询对象
+	 *
+	 * @param db
+	 * @param cls
+	 * @param sql
+	 * @param paramGetter
+	 * @param <T>
+	 * @return
+	 */
+	static <T extends ModelBase> T queryObjectBySql(Database db, Class<T> cls, String sql, Map<String,Object> paramGetter)
+	{
+		DBModelInfo dbModelInfo = getDBModelInfo(cls);
 		Map<String,Object> dataMap = db.queryMap(sql, paramGetter);
 		if (dataMap == null)
 		{
 			return null;
 		}
-		Map<String,String> childTblInfo = dbModelInfo.getChildTblInfos();
-		if (childTblInfo != null && childTblInfo.size() > 0)
-		{
-			Set<String> childFldNames = childTblInfo.keySet();
-			for (String childFldName : childFldNames)
-			{
-				if (childFldName.endsWith("$$FILTER"))
-				{
-					continue;
-				}
-				String classPath = childTblInfo.get(childFldName);
-				String childFilter = childTblInfo.get(childFldName + "$$FILTER");
-				try
-				{
-					Class<T> childCls = (Class<T>) Class.forName(classPath);
-					List<T> childObjs = queryObjects(db, childCls, childFilter, dataMap);
-					dataMap.put(childFldName, childObjs);
-				} catch (ClassNotFoundException e)
-				{
-					throw new RuntimeException(e);
-				}
-			}
-		}
-		String after_time_begin = DateUtil.getCurDateTimeCS();
-		long after_begin = System.currentTimeMillis();
-		T objT = MapUtil.mapToObject(dataMap, cls);
+		//T objT = MapUtil.mapToObject(dataMap, cls);
+		//此处进行代理
+		T objT = MapUtil.mapToObject(dataMap, DwModelProxyFactory.getProxyObject(cls));
+		//T objT = DwModelProxyFactory.getProxyObject(MapUtil.mapToObject(dataMap, cls));
 		objT.set_create_date((Date) dataMap.get("_create_date"));
 		objT.set_update_date((Date) dataMap.get("_update_date"));
 		objT.set_delete_flag((Integer) dataMap.get("_delete_flag"));
@@ -132,10 +125,18 @@ class ObjectProxyFactory
 		{
 			modelBase._setOldValue(fldName, dataMap.get(fldName));
 		}
-		String after_time_end = DateUtil.getCurDateTimeCS();
-		long after_end = System.currentTimeMillis();
-		//Logger.info("单对象封装:", after_time_begin + "——" + after_time_end + "(ST:" + (after_begin - after_end) + "ms)");
-		//TODO 通用日志记录方案
+		//处理非懒加载的子表加载
+		DwSubsetLoadService dwSubsetLoadService = (DwSubsetLoadService) DwSpringUtil.getBean("dwSubsetLoadService");
+		Map<String,SubsetInfo> subsetInfoMap = dbModelInfo.getSubsetInfoMap();
+		Set<String> subsetFieldNames = subsetInfoMap.keySet();
+		for (String subsetFieldName : subsetFieldNames)
+		{
+			DwDbConstant.SubsetSelectInfo subsetSelectInfo = subsetInfoMap.get(subsetFieldName).getSubsetSelectInfo();
+			if (!subsetSelectInfo.isLazy())
+			{
+				dwSubsetLoadService.loadToModel(objT, subsetFieldName);
+			}
+		}
 		return objT;
 	}
 
@@ -182,8 +183,6 @@ class ObjectProxyFactory
 	 */
 	static <T extends ModelBase> List<T> queryObjects(Database db, Class<T> cls, String filter, Map<String,Object> paramGetter, int pageNum, int pageSize, String ordBy)
 	{
-		String before_time_begin = DateUtil.getCurDateTimeCS();
-		long before_begin = System.currentTimeMillis();
 		if (pageNum != 0 && pageSize != 0)
 		{
 			if (paramGetter == null)
@@ -203,43 +202,19 @@ class ObjectProxyFactory
 		{
 			sql += " order by " + ordBy;
 		}
-		String before_time_end = DateUtil.getCurDateTimeCS();
-		long before_end = System.currentTimeMillis();
-		//Logger.info("列表查询SQL生成:", before_time_begin + "——" + before_time_end + "(ST:" + (before_end - before_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
+		return queryObjectsBySql(db, cls, sql, paramGetter);
+	}
+
+	static <T extends ModelBase> List<T> queryObjectsBySql(Database db, Class<T> cls, String sql, Map<String,Object> paramGetter)
+	{
+		DBModelInfo dbModelInfo = getDBModelInfo(cls);
 		List<Map<String,Object>> dataMapList = db.queryListMap(sql, paramGetter);
-		Map<String,String> childTblInfo = dbModelInfo.getChildTblInfos();
-		if (childTblInfo != null && childTblInfo.size() > 0)
-		{
-			Set<String> childFldNames = childTblInfo.keySet();
-			for (Map<String,Object> dataMap : dataMapList)
-			{
-				for (String childFldName : childFldNames)
-				{
-					if (childFldName.endsWith("$$FILTER"))
-					{
-						continue;
-					}
-					String classPath = childTblInfo.get(childFldName);
-					String childFilter = childTblInfo.get(childFldName + "$$FILTER");
-					try
-					{
-						Class<T> childCls = (Class<T>) Class.forName(classPath);
-						List<T> childObjs = queryObjects(db, childCls, childFilter, dataMap);
-						dataMap.put(childFldName, childObjs);
-					} catch (ClassNotFoundException e)
-					{
-						throw new RuntimeException(e);
-					}
-				}
-			}
-		}
-		String after_time_begin = DateUtil.getCurDateTimeCS();
-		long after_begin = System.currentTimeMillis();
 		List<T> objList = new ArrayList<>();
 		for (Map<String,Object> dataMap : dataMapList)
 		{
-			T objT = MapUtil.mapToObject(dataMap, cls);
+			//T objT = MapUtil.mapToObject(dataMap, cls);
+			T objT = MapUtil.mapToObject(dataMap, DwModelProxyFactory.getProxyObject(cls));
+			//T objT = DwModelProxyFactory.getProxyObject(MapUtil.mapToObject(dataMap, cls));
 			objT.set_create_date((Date) dataMap.get("_create_date"));
 			objT.set_update_date((Date) dataMap.get("_update_date"));
 			//设置oldValue
@@ -251,10 +226,17 @@ class ObjectProxyFactory
 			}
 			objList.add(objT);
 		}
-		String after_time_end = DateUtil.getCurDateTimeCS();
-		long after_end = System.currentTimeMillis();
-		//Logger.info("对象列表封装:", after_time_begin + "——" + after_time_end + "(ST:" + (after_end - after_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
+		DwSubsetLoadService dwSubsetLoadService = (DwSubsetLoadService) DwSpringUtil.getBean("dwSubsetLoadService");
+		Map<String,SubsetInfo> subsetInfoMap = dbModelInfo.getSubsetInfoMap();
+		Set<String> subsetFieldNames = subsetInfoMap.keySet();
+		for (String subsetFieldName : subsetFieldNames)
+		{
+			DwDbConstant.SubsetSelectInfo subsetSelectInfo = subsetInfoMap.get(subsetFieldName).getSubsetSelectInfo();
+			if (!subsetSelectInfo.isLazy())
+			{
+				dwSubsetLoadService.loadToModelList(objList, subsetFieldName);
+			}
+		}
 		return objList;
 	}
 
@@ -297,18 +279,14 @@ class ObjectProxyFactory
 		{
 			return;
 		}
-		String before_time_begin = DateUtil.getCurDateTimeCS();
-		long before_begin = System.currentTimeMillis();
 		DBModelInfo dbModelInfo = getDBModelInfo(modelBase.getClass());
-		Map<String,String> fldNameMap = dbModelInfo.getFldNameInfos();
-		Map<String,String> keyInfo = dbModelInfo.getKeys();
+		Set<String> keyFlds = dbModelInfo.getKeys();
 		//是否有数据主键，没有数据主键则抛出错误
-		if (keyInfo == null || keyInfo.size() == 0)
+		if (keyFlds == null || keyFlds.size() == 0)
 		{
 			throw new RuntimeException("未检测到数据主键：" + dbModelInfo.getClassPath());
 		}
 		//检测更新数据中是否包含主键，如果包含主键则抛出错误
-		Set<String> keyFlds = keyInfo.keySet();
 		for (String key : keyFlds)
 		{
 			if (updateDatas.containsKey(key))
@@ -317,17 +295,25 @@ class ObjectProxyFactory
 			}
 		}
 		StringBuffer sql = new StringBuffer();
+		List<FldInfo> fldInfoList = dbModelInfo.getFldInfoList();
 		Set<String> updateFldNames = updateDatas.keySet();
 		sql.append("update " + dbModelInfo.getTblName() + " set ");
 		int i = 0;
-		for (String fldName : updateFldNames)
+		for (FldInfo fldInfo : fldInfoList)
 		{
-			if (i > 0)
+			if (fldInfo.isRealField())
 			{
-				sql.append(",");
+				String fldName = fldInfo.getFldName();
+				if (updateFldNames.contains(fldName))
+				{
+					if (i > 0)
+					{
+						sql.append(",");
+					}
+					sql.append(fldName + "=:" + fldName);
+					i++;
+				}
 			}
-			sql.append(fldNameMap.get(fldName) + "=:" + fldName);
-			i++;
 		}
 		sql.append(" where ");
 		//过滤条件
@@ -338,28 +324,18 @@ class ObjectProxyFactory
 			{
 				sql.append(" and ");
 			}
-			sql.append(keyInfo.get(key) + "=:" + key);
+			sql.append(key + "=:" + key);
 			//取key值，作为paramGetter
 			updateDatas.put(key, modelBase.get_oldDataMap_().get(key));
 		}
-		String before_time_end = DateUtil.getCurDateTimeCS();
-		long before_end = System.currentTimeMillis();
-		//Logger.info("更新SQL生成:", before_time_begin + "——" + before_time_end + "(ST:" + (before_end - before_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
 		//执行数据库更新
 		db.update1(sql.toString(), updateDatas);
 		//更新oldValue
-		String after_time_begin = DateUtil.getCurDateTimeCS();
-		long after_begin = System.currentTimeMillis();
 		Set<String> fldNames = dbModelInfo.getFldNames();
 		for (String fldName : fldNames)
 		{
 			modelBase._setOldValue(fldName, updateDatas.get(fldName));
 		}
-		String after_time_end = DateUtil.getCurDateTimeCS();
-		long after_end = System.currentTimeMillis();
-		//Logger.info("更新后处理:", after_time_begin + "——" + after_time_end + "(ST:" + (after_end - after_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
 	}
 
 	/**
@@ -371,8 +347,6 @@ class ObjectProxyFactory
 	 */
 	static void insert(Database db, ModelBase modelBase)
 	{
-		String before_time_begin = DateUtil.getCurDateTimeCS();
-		long before_begin = System.currentTimeMillis();
 		Class<?> cls = modelBase.getClass();
 		DBModelInfo dbModelInfo = getDBModelInfo(cls);
 		//表名
@@ -380,33 +354,27 @@ class ObjectProxyFactory
 		//该model bean下的所有属性的数据
 		Map<String,Object> dataMap = MapUtil.objectToMap(modelBase);
 		//要处理的更新字段
-		Map<String,String> fldNameInfos = dbModelInfo.getFldNameInfos();
+		List<FldInfo> fldInfoList = dbModelInfo.getFldInfoList();
 		Set<String> fldNames = dbModelInfo.getFldNames();
 		//构造插入数据
 		Map<String,Object> insertDatas = new HashMap<>();
-		for (String fldName : fldNames)
+		for (FldInfo fldInfo : fldInfoList)
 		{
-			insertDatas.put(fldNameInfos.get(fldName), dataMap.get(fldName));
+			if (fldInfo.isRealField())
+			{
+				String fldName = fldInfo.getFldName();
+				insertDatas.put(fldName, dataMap.get(fldName));
+			}
 		}
 		insertDatas.put("_create_date", modelBase.get_create_date());
 		insertDatas.put("_update_date", modelBase.get_update_date());
 		insertDatas.put("_delete_flag", modelBase.get_delete_flag());
-		String before_time_end = DateUtil.getCurDateTimeCS();
-		long before_end = System.currentTimeMillis();
-		//Logger.info("插入SQL生成:", before_time_begin + "——" + before_time_end + "(ST:" + (before_end - before_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
 		db.insert2(tblName, insertDatas);
-		String after_time_begin = DateUtil.getCurDateTimeCS();
-		long after_begin = System.currentTimeMillis();
 		//更新oldValue
 		for (String fldName : fldNames)
 		{
 			modelBase._setOldValue(fldName, insertDatas.get(fldName));
 		}
-		String after_time_end = DateUtil.getCurDateTimeCS();
-		long after_end = System.currentTimeMillis();
-		//Logger.info("插入后处理:", after_time_begin + "——" + after_time_end + "(ST:" + (after_end - after_begin) + "ms)");
-		//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
 	}
 
 	/**
@@ -465,37 +433,37 @@ class ObjectProxyFactory
 	 *
 	 * @param dbModelInfo
 	 */
-	private static void setSelectSql(DBModelInfo dbModelInfo)
+	private static String getSelectSql(DBModelInfo dbModelInfo)
 	{
 		String tblName = dbModelInfo.getTblName();
-		Map<String,String> fldNameInfos = dbModelInfo.getFldNameInfos();
-		if (StrUtil.isStrTrimNull(tblName) || fldNameInfos == null || fldNameInfos.size() == 0)
+		List<FldInfo> fldInfoList = dbModelInfo.getFldInfoList();
+		if (StrUtil.isStrTrimNull(tblName) || fldInfoList == null || fldInfoList.size() == 0)
 		{
 			throw new RuntimeException("Model Error, tblName or fldName is Null:" + dbModelInfo.getClassPath());
 		}
 		StringBuffer sql = new StringBuffer();
 		sql.append("select ");
-		Set<String> keys = fldNameInfos.keySet();
 		int i = 0;
-		for (String key : keys)
+		for (FldInfo fldInfo : fldInfoList)
 		{
 			if (i > 0)
 			{
 				sql.append(",");
 			}
 			//如果别名和原名一致，则不需要再使用别名
-			String fldRealName = fldNameInfos.get(key);
-			if (key.equals(fldRealName))
+			String fldName = fldInfo.getFldName();
+			String fldRealName = fldInfo.getRealName();
+			if (fldName.equals(fldRealName))
 			{
-				sql.append(key);
+				sql.append(fldName);
 			} else
 			{
-				sql.append(fldNameInfos.get(key) + " as " + key + " ");
+				sql.append(fldRealName + " as " + fldName + " ");
 			}
 			i++;
 		}
 		sql.append(" from " + tblName);
-		dbModelInfo.setSelectSql(sql.toString());
+		return sql.toString();
 	}
 
 	/**
@@ -511,20 +479,69 @@ class ObjectProxyFactory
 		{
 			return dbModelInfo;
 		}
-		dbModelInfo = new DBModelInfo();
 		DBAnnotationModel annotationModel = getAnnotationModel(cls);
-		dbModelInfo.setTblName(getTblName(annotationModel));
-		dbModelInfo.setFldNameInfos(getFldNames(annotationModel));
-		dbModelInfo.setKeys(getKeyMap(annotationModel));
-		dbModelInfo.setChildTblInfos(getChildFldClsInfo(annotationModel));
-		dbModelInfo.setClassPath(cls.getName());
-		setSelectSql(dbModelInfo);
+		//DBModelInfo填充
+		dbModelInfo = getDbModelInfoByCls(cls);
 		dbModelInfos.put(cls.getName(), dbModelInfo);
+		return dbModelInfo;
+	}
+
+	private static DBModelInfo getDbModelInfoByCls(Class<?> cls)
+	{
+		DBAnnotationModel dbAnnotationModel = getAnnotationModel(cls);
+		DBModelInfo dbModelInfo = new DBModelInfo();
+		//classPath;//model class path
+		dbModelInfo.setClassPath(cls.getName());
+		//tblName;//table name
+		DwDbTbl dwDbTbl = dbAnnotationModel.getDwDbTbl();
+		dbModelInfo.setTblName(dwDbTbl.tblName());
+		//fldNames;//field names
+		//keys;//主键
+		//fldInfoList;//字段属性信息
+		Map<String,DwDbFld> dwDbFldMap = dbAnnotationModel.getDwDbFldMap();
+		Set<String> fldNames = dwDbFldMap.keySet();
+		Set<String> keys = new HashSet<>();
+		List<FldInfo> fldInfoList = new ArrayList<>();
+		if (fldNames != null)
+		{
+			for (String fldName : fldNames)
+			{
+				DwDbFld dwDbFld = dwDbFldMap.get(fldName);
+				FldInfo fldInfo = getFldInfoByDwDbFld(fldName, dwDbFld);
+				if (fldInfo.isKey())
+				{
+					keys.add(fldInfo.getFldName());
+				}
+				fldInfoList.add(fldInfo);
+			}
+		}
+		//处理默认字段
+		dealDefaultFldInfo(fldInfoList);
+		dbModelInfo.setFldNames(fldNames);
+		dbModelInfo.setKeys(keys);
+		dbModelInfo.setFldInfoList(fldInfoList);
+		//subInfoList;//级联属性信息
+		Map<String,DwDbSub> dwDbSubMap = dbAnnotationModel.getDwDbSubMap();
+		Set<String> subNames = dwDbSubMap.keySet();
+		Map<String,SubsetInfo> subsetInfoMap = new HashMap<>();
+		if (subNames != null)
+		{
+			for (String subName : subNames)
+			{
+				DwDbSub dwDbSub = dwDbSubMap.get(subName);
+				SubsetInfo subsetInfo = getSubInfoByDwDbSub(cls, subName, dwDbSub);
+				subsetInfoMap.put(subName, subsetInfo);
+			}
+		}
+		dbModelInfo.setSubsetInfoMap(subsetInfoMap);
+		//selectSql;//select sql
+		dbModelInfo.setSelectSql(getSelectSql(dbModelInfo));
 		return dbModelInfo;
 	}
 
 	/**
 	 * 获取DBModel的注解信息
+	 *
 	 * @param cls
 	 * @return
 	 */
@@ -533,153 +550,138 @@ class ObjectProxyFactory
 		DBAnnotationModel annotationModel = new DBAnnotationModel();
 		DwDbTbl fwDbTbl = cls.getAnnotation(DwDbTbl.class);
 		annotationModel.setDwDbTbl(fwDbTbl);
-		Field[] fileds = cls.getDeclaredFields();
-		for (Field field : fileds)
+		Field[] fields = cls.getDeclaredFields();
+		for (Field field : fields)
 		{
 			String fldName = field.getName();
 			DwDbFld fwDbFld = field.getAnnotation(DwDbFld.class);
 			if (fwDbFld != null)
 			{
 				annotationModel.addDwDbFld(fldName, fwDbFld);
+				continue;
+			}
+			DwDbSub dwDbSub = field.getAnnotation(DwDbSub.class);
+			if (dwDbSub != null)
+			{
+				annotationModel.addDwDbSub(fldName, dwDbSub);
+				continue;
 			}
 		}
 		return annotationModel;
 	}
 
 	/**
-	 * 根据注解信息，获取DBModel配置的表名
-	 * @param annotationModel
-	 * @return
+	 * 处理默认字段信息
+	 *
+	 * @param fldInfos
 	 */
-	private static String getTblName(DBAnnotationModel annotationModel)
+	private static void dealDefaultFldInfo(List<FldInfo> fldInfos)
 	{
-		DwDbTbl fwDbTbl = annotationModel.getDwDbTbl();
-		return fwDbTbl.tblName();
+		fldInfos.add(new FldInfo(false, "_update_date", "_update_date"));
+		fldInfos.add(new FldInfo(false, "_create_date", "_create_date"));
+		fldInfos.add(new FldInfo(false, "_delete_flag", "_delete_flag"));
 	}
 
 	/**
-	 * 根据注解信息，获取DBModel配置的属性名和字段名的映射Map
-	 * @param annotationModel
+	 * 根据字段注解，获取字段信息
+	 *
+	 * @param fldName
+	 * @param dwDbFld
 	 * @return
 	 */
-	private static Map<String,String> getFldNames(DBAnnotationModel annotationModel)
+	private static FldInfo getFldInfoByDwDbFld(String fldName, DwDbFld dwDbFld)
 	{
-		Map<String,String> fldNameMap = new HashMap<>();
-		DwDbTbl fwDbTbl = annotationModel.getDwDbTbl();
-		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
-		Set<String> keys = fwDbFldMap.keySet();
-		for (String key : keys)
-		{
-			DwDbFld fwDbFld = fwDbFldMap.get(key);
-			//未配置子表类路径
-			if ("".equals(fwDbFld.childTblClsPath()) && fwDbFld.isFld())
-			{
-				String fldName = fwDbFld.fldName();
-				if ("".equals(fldName))
-				{
-					fldName = key;
-					//如果设置了转换小写
-					if (fwDbTbl.isAllFldLowerCase() || fwDbFld.isLowerCase())
-					{
-						fldName = fldName.toLowerCase();
-					}
-				}
-				fldNameMap.put(key, fldName);
-			}
-		}
-		fldNameMap.put("_update_date", "_update_date");
-		fldNameMap.put("_create_date", "_create_date");
-		fldNameMap.put("_delete_flag", "_delete_flag");
-		return fldNameMap;
+		FldInfo fldInfo = new FldInfo();
+		//是否主键
+		fldInfo.setKey(dwDbFld.isKey());
+		//属性名
+		fldInfo.setFldName(fldName);
+		//真实字段名
+		String realName = dwDbFld.fldName();
+		realName = StrUtil.isStrTrimNull(realName) ? fldName : realName;
+		fldInfo.setRealName(realName);
+		return fldInfo;
 	}
 
-	/**
-	 * 根据注解信息获取子表类路径信息
-	 * @param annotationModel
-	 * @return
-	 */
-	private static Map<String,String> getChildFldClsInfo(DBAnnotationModel annotationModel)
+	private static SubsetInfo getSubInfoByDwDbSub(Class cls, String fldName, DwDbSub dwDbSub)
 	{
-		Map<String,String> fldNameCls = new HashMap<>();
-		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
-		Set<String> keys = fwDbFldMap.keySet();
-		for (String key : keys)
+		SubsetInfo subInfo = new SubsetInfo();
+		subInfo.setFldName(fldName);
+		try
 		{
-			DwDbFld fwDbFld = fwDbFldMap.get(key);
-			//配置子表类路径，且配置了子表加载过滤条件
-			if (!"".equals(fwDbFld.childTblClsPath()) && !"".equals(fwDbFld.childTblLoadFilter()))
-			{
-				String clsPath = fwDbFld.childTblClsPath();
-				String loadFilter = fwDbFld.childTblLoadFilter();
-				fldNameCls.put(key, clsPath);
-				fldNameCls.put(key + "$$FILTER", loadFilter);
-			}
-		}
-		return fldNameCls;
-	}
-
-	/**
-	 * 根据注解信息，获取配置的表的主键
-	 * @param annotationModel
-	 * @return
-	 */
-	private static Map<String,String> getKeyMap(DBAnnotationModel annotationModel)
-	{
-		Map<String,String> keyMap = new HashMap<>();
-		Map<String,DwDbFld> fwDbFldMap = annotationModel.getDwDbFlds();
-		Set<String> keys = fwDbFldMap.keySet();
-		for (String key : keys)
+			subInfo.setSubsetTypeInfo(DBSubsetUtil.getSubsetTypeInfoByField(cls.getDeclaredField(fldName)));
+		} catch (NoSuchFieldException e)
 		{
-			DwDbFld fwDbFld = fwDbFldMap.get(key);
-			//未配置子表类路径
-			if (fwDbFld.isKey())
-			{
-				String fldName = fwDbFld.fldName();
-				if ("".equals(fldName))
-				{
-					fldName = key;
-				}
-				keyMap.put(key, fldName);
-			}
+			subInfo.setSubsetTypeInfo(null);
 		}
-		return keyMap;
+		subInfo.setSubsetSelectInfo(DBSubsetUtil.getSubsetSelectInfoByDwDbSub(dwDbSub));
+		return subInfo;
 	}
 
 	/**
 	 * Model info 封装
 	 */
 	@Data
-	private static class DBModelInfo
+	protected static class DBModelInfo
 	{
-		private String             classPath;
-		private String             tblName;
-		private Map<String,String> fldNameInfos;
-		private Map<String,String> childTblInfos;
-		private Map<String,String> keys;
-		private String             selectSql;
-		private Set<String>        fldNames;
-
-		public void setFldNameInfos(Map<String,String> fldNameInfos)
-		{
-			this.fldNames = fldNameInfos.keySet();
-			this.fldNameInfos = fldNameInfos;
-		}
+		private String                 classPath;//model class path
+		private String                 tblName;//table name
+		private String                 selectSql;//select sql
+		private Set<String>            fldNames;//field names
+		private Set<String>            keys;//主键
+		private List<FldInfo>          fldInfoList;//字段属性信息
+		private Map<String,SubsetInfo> subsetInfoMap;//级联属性信息
 	}
-
 	@Data
 	private static class DBAnnotationModel
 	{
-		Map<String,DwDbFld> dwDbFldMaps = new HashMap<>();
-		DwDbTbl             dwDbTbl     = null;
-
-		public Map<String,DwDbFld> getDwDbFlds()
-		{
-			return dwDbFldMaps;
-		}
+		Map<String,DwDbFld> dwDbFldMap = new HashMap<>();
+		Map<String,DwDbSub> dwDbSubMap = new HashMap<>();
+		DwDbTbl             dwDbTbl    = null;
 
 		public void addDwDbFld(String fldName, DwDbFld dwDbFld)
 		{
-			dwDbFldMaps.put(fldName, dwDbFld);
+			dwDbFldMap.put(fldName, dwDbFld);
 		}
+
+		public void addDwDbSub(String fldName, DwDbSub dwDbSub)
+		{
+			dwDbSubMap.put(fldName, dwDbSub);
+		}
+	}
+	@Data
+	private static class FldInfo
+	{
+		private boolean isKey;
+		private String  fldName;
+		private String  realName;
+
+		FldInfo()
+		{
+		}
+
+		FldInfo(boolean isKey, String fldName, String realName)
+		{
+			this.isKey = isKey;
+			this.fldName = fldName;
+			this.realName = realName;
+		}
+
+		/**
+		 * 是否是真实字段，根据配置的字段内容和字段名是否一致进行判断
+		 *
+		 * @return
+		 */
+		boolean isRealField()
+		{
+			return fldName.equals(realName);
+		}
+	}
+	@Data
+	protected static class SubsetInfo
+	{
+		protected String                        fldName;
+		protected DwDbConstant.SubsetTypeInfo   subsetTypeInfo;
+		protected DwDbConstant.SubsetSelectInfo subsetSelectInfo;
 	}
 }

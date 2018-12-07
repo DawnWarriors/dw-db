@@ -226,6 +226,52 @@ public class TypeUtil
 			return obj;
 		}
 		String toTypeClassName = toType.getName();
-		return typeConversion(obj.toString(), toTypeClassName);
+		Object result = typeConversion(obj.toString(), toTypeClassName);
+		return result == null ? obj : result;
+	}
+
+	/**
+	 * 判断一个类型是否是基础类型
+	 *
+	 * @param type Type
+	 * @return Boolean
+	 */
+	public static boolean isBaseType(Class<?> type)
+	{
+		return isBaseType(type.getName());
+	}
+
+	/**
+	 * 判断一个类型是否是基础类型
+	 * @param typeName typeName
+	 * @return Boolean
+	 */
+	public static boolean isBaseType(String typeName)
+	{
+		switch (typeName)
+		{
+		case "java.lang.Integer":
+		case "java.lang.Double":
+		case "java.lang.Float":
+		case "java.lang.Long":
+		case "java.lang.Short":
+		case "java.lang.Byte":
+		case "java.lang.Boolean":
+		case "java.lang.Character":
+		case "java.lang.String":
+		case "java.math.BigDecimal":
+		case "java.util.Date":
+		case "int":
+		case "double":
+		case "float":
+		case "long":
+		case "short":
+		case "byte":
+		case "boolean":
+		case "char":
+			return true;
+		default:
+			return false;
+		}
 	}
 }

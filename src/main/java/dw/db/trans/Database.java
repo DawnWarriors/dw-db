@@ -5,6 +5,8 @@ import com.mysql.jdbc.exceptions.jdbc4.CommunicationsException;
 import dw.db.sql.SqlParameter;
 import dw.common.util.date.DateUtil;
 import dw.common.util.num.IntUtil;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StopWatch;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -23,6 +25,7 @@ import java.util.Map;
 //		SQL.PAGE.OFFSET:偏移量
 //		SQL.PAGE.SIZE:每页大小
 //TODO 查询以及更新的缓存操作
+@Slf4j
 public class Database
 {
 	Connection con        = null;
@@ -79,7 +82,7 @@ public class Database
 			}
 			if (mapListMap.get(key) == null)
 			{
-				mapListMap.put(key, new ArrayList<Map<String,Object>>());
+				mapListMap.put(key, new ArrayList<>());
 			}
 			mapListMap.get(key).add(map);
 		}
@@ -224,7 +227,7 @@ public class Database
 	 * @param paramGetter 查询参数封装Map
 	 * @return 结果数组
 	 */
-	public Object[] queryOjbect1Row(String sql, Map<String,Object> paramGetter)
+	public Object[] queryObject1Row(String sql, Map<String,Object> paramGetter)
 	{
 		try
 		{
@@ -245,7 +248,7 @@ public class Database
 	 */
 	public Object[] queryObject1Row(String sql)
 	{
-		return queryOjbect1Row(sql, null);
+		return queryObject1Row(sql, null);
 	}
 
 	/**
@@ -290,7 +293,7 @@ public class Database
 	 */
 	public Object queryObject(String sql, Map<String,Object> paramGetter)
 	{
-		Object[] objs = queryOjbect1Row(sql, paramGetter);
+		Object[] objs = queryObject1Row(sql, paramGetter);
 		if (objs == null || objs.length == 0)
 		{
 			return null;
@@ -357,7 +360,7 @@ public class Database
 	 *
 	 * @param tableName 表名
 	 * @param params    需要更新的列名与值对应的Map集合
-	 * @param <T> 列值参数对象
+	 * @param <T>       列值参数对象
 	 */
 	public <T> void insert2(String tableName, Map<String,T> params)
 	{
@@ -542,9 +545,9 @@ public class Database
 					sql = PagerUtils.limit(sql, dbType, IntUtil.objToInt(offset), IntUtil.objToInt(count));
 				}
 			}
-			String sql_begin_time = DateUtil.getCurDateTimeCS();
-			long sql_begin = System.currentTimeMillis();
-			//System.out.println(DateUtil.getCurDateTimeStr() + ":" + sql);
+			//计时器，效率检测
+			StopWatch stopWatch = new StopWatch();
+			stopWatch.start();
 			PreparedStatement preparedStatement = con.prepareStatement(sql);
 			if (keys != null && paramGetter != null)
 			{
@@ -554,8 +557,6 @@ public class Database
 					preparedStatement.setObject(i + 1, paramGetter.get(key));
 				}
 			}
-			sql = sql.replaceAll("\n", " ");
-			sql = sql.replaceAll("\\s{2,}", " ");
 			Object result = null;
 			// 查询
 			if (option == 1)
@@ -573,11 +574,10 @@ public class Database
 			{
 				result = preparedStatement.execute();
 			}
-			String sql_end_time = DateUtil.getCurDateTimeCS();
-			long sql_end = System.currentTimeMillis();
-			//Logger.info("SQL:",sql);
-			//Logger.info("SQL执行:",sql_begin_time+"——"+sql_end_time+"(ST:"+(sql_end-sql_begin)+"ms)");
-			//TODO 通用日志记录方案----用于debug模式下，sql执行效率检测
+			stopWatch.stop();
+			sql = sql.replaceAll("\n", " ");
+			sql = sql.replaceAll("\\s{2,}", " ");
+			log.debug(sql + "(" + stopWatch.getTotalTimeMillis() + ")");
 			return result;
 		} catch (SQLException | IllegalArgumentException | SecurityException e)
 		{

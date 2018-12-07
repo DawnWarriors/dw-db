@@ -136,7 +136,7 @@ public class DBUtil
 		List<Map<String,Object>> result = new ArrayList<>();
 		while (rs.next())
 		{
-			Map<String,Object> recordMap = new HashMap<>();
+			LinkedHashMap<String,Object> recordMap = new LinkedHashMap<>();
 			for (int i = 0 ; i < column.length ; i++)
 			{
 				recordMap.put(column[i], getObjectFormRS(rs, column[i]));
@@ -170,7 +170,7 @@ public class DBUtil
 	 */
 	static Map<String,Map<String,Object>> getMapMapFromResultSet(DataSource dataSource, String tableName, ResultSet rs) throws SQLException
 	{
-		Map<String,Map<String,Object>> result = new HashMap<>();
+		LinkedHashMap<String,Map<String,Object>> result = new LinkedHashMap<>();
 		String[] keys = DatabaseConstant.getIdNames(tableName);
 		List<Map<String,Object>> listMap = getMapFromResultSet(rs);
 		for (Map<String,Object> map : listMap)

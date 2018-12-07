@@ -1,5 +1,6 @@
 package dw.common.util.map;
 
+import dw.common.util.aop.ProxyTargetUtils;
 import dw.common.util.str.StrUtil;
 import dw.common.util.type.TypeUtil;
 
@@ -116,7 +117,38 @@ public class MapUtil
 		try
 		{
 			T obj = beanClass.newInstance();
-			Field[] fields = obj.getClass().getDeclaredFields();
+			return mapToObject(map, obj);
+		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
+
+	/**
+	 * 为指定对象赋值
+	 *
+	 * @param map Map对象
+	 * @param obj Bean对象
+	 * @param <T> 泛型
+	 * @return 赋值后的Bean对象
+	 */
+	public static <T> T mapToObject(Map<String,Object> map, T obj)
+	{
+		if (map == null)
+		{
+			return obj;
+		}
+		try
+		{
+			Object target = obj;
+			try
+			{
+				target = (T) ProxyTargetUtils.getTarget(obj);
+			} catch (Exception e)
+			{
+				throw new RuntimeException(e);
+			}
+			Field[] fields = target.getClass().getDeclaredFields();
 			for (Field field : fields)
 			{
 				int mod = field.getModifiers();
@@ -142,7 +174,7 @@ public class MapUtil
 				method.invoke(obj, value);
 			}
 			return obj;
-		} catch (InstantiationException | IllegalAccessException | IntrospectionException | IllegalArgumentException | InvocationTargetException | ParseException e)
+		} catch (IllegalAccessException | IntrospectionException | IllegalArgumentException | InvocationTargetException | ParseException e)
 		{
 			throw new RuntimeException(e);
 		}
@@ -161,6 +193,13 @@ public class MapUtil
 			return null;
 		}
 		Map<String,Object> map = new HashMap<String,Object>();
+		try
+		{
+			obj = ProxyTargetUtils.getTarget(obj);
+		} catch (Exception e)
+		{
+			throw new RuntimeException(e);
+		}
 		Field[] declaredFields = obj.getClass().getDeclaredFields();
 		for (Field field : declaredFields)
 		{
