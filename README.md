@@ -80,7 +80,6 @@ public class PageInfo
 ```
 ## 2.DAO层扩展
     
-    通过在Dao方法上加@DaoAutoDatabase注解，即可实现对方法参数Database实现注入，注入对象为当前事务Session，如果当前没有事务Session，则会新建一个，并且自动开启事务，如果中间抛出异常，则自动回滚；
     通过Database对象，可以直接执行SQL语句，或者其他不需要得到Model形式结果的操作；
     
 > 扩展案例
