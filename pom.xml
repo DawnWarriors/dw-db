@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.dawnwarriors</groupId>
     <artifactId>dw-db</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.3</version>
     <packaging>jar</packaging>
     <name>dw-db</name>
     <url>https://github.com/DawnWarriors/dw-db</url>
