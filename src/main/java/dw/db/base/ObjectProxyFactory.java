@@ -111,16 +111,15 @@ class ObjectProxyFactory
 		{
 			return null;
 		}
-		//T objT = MapUtil.mapToObject(dataMap, cls);
+		T objT = MapUtil.mapToObject(dataMap, cls);
 		//此处进行代理
-		T objT = MapUtil.mapToObject(dataMap, DwModelProxyFactory.getProxyObject(cls));
-		//T objT = DwModelProxyFactory.getProxyObject(MapUtil.mapToObject(dataMap, cls));
-		objT.set_create_date((Date) dataMap.get("_create_date"));
-		objT.set_update_date((Date) dataMap.get("_update_date"));
-		objT.set_delete_flag((Integer) dataMap.get("_delete_flag"));
+		objT = DwModelProxyFactory.getProxyObject(objT);
+		objT.set__create_date((Date) dataMap.get("__create_date"));
+		objT.set__update_date((Date) dataMap.get("__update_date"));
+		objT.set__delete_flag((Integer) dataMap.get("__delete_flag"));
 		//设置oldValue
 		Set<String> fldNames = dbModelInfo.getFldNames();
-		ModelBase modelBase = (ModelBase) objT;
+		ModelBase modelBase = objT;
 		for (String fldName : fldNames)
 		{
 			modelBase._setOldValue(fldName, dataMap.get(fldName));
@@ -212,14 +211,13 @@ class ObjectProxyFactory
 		List<T> objList = new ArrayList<>();
 		for (Map<String,Object> dataMap : dataMapList)
 		{
-			//T objT = MapUtil.mapToObject(dataMap, cls);
-			T objT = MapUtil.mapToObject(dataMap, DwModelProxyFactory.getProxyObject(cls));
-			//T objT = DwModelProxyFactory.getProxyObject(MapUtil.mapToObject(dataMap, cls));
-			objT.set_create_date((Date) dataMap.get("_create_date"));
-			objT.set_update_date((Date) dataMap.get("_update_date"));
+			T objT = MapUtil.mapToObject(dataMap, cls);
+			objT = DwModelProxyFactory.getProxyObject(objT);
+			objT.set__create_date((Date) dataMap.get("__create_date"));
+			objT.set__update_date((Date) dataMap.get("__update_date"));
 			//设置oldValue
 			Set<String> fldNames = dbModelInfo.getFldNames();
-			ModelBase modelBase = (ModelBase) objT;
+			ModelBase modelBase = objT;
 			for (String fldName : fldNames)
 			{
 				modelBase._setOldValue(fldName, dataMap.get(fldName));
@@ -366,9 +364,9 @@ class ObjectProxyFactory
 				insertDatas.put(fldName, dataMap.get(fldName));
 			}
 		}
-		insertDatas.put("_create_date", modelBase.get_create_date());
-		insertDatas.put("_update_date", modelBase.get_update_date());
-		insertDatas.put("_delete_flag", modelBase.get_delete_flag());
+		insertDatas.put("__create_date", modelBase.get__create_date());
+		insertDatas.put("__update_date", modelBase.get__update_date());
+		insertDatas.put("__delete_flag", modelBase.get__delete_flag());
 		db.insert2(tblName, insertDatas);
 		//更新oldValue
 		for (String fldName : fldNames)
@@ -419,8 +417,8 @@ class ObjectProxyFactory
 					}
 				}
 			}
-			updateDatas.put("_update_date", modelBase.get_update_date());
-			updateDatas.put("_delete_flag", modelBase.get_delete_flag());
+			updateDatas.put("__update_date", modelBase.get__update_date());
+			updateDatas.put("__delete_flag", modelBase.get__delete_flag());
 			return updateDatas;
 		} catch (IllegalArgumentException | IllegalAccessException e)
 		{
@@ -577,9 +575,9 @@ class ObjectProxyFactory
 	 */
 	private static void dealDefaultFldInfo(List<FldInfo> fldInfos)
 	{
-		fldInfos.add(new FldInfo(false, "_update_date", "_update_date"));
-		fldInfos.add(new FldInfo(false, "_create_date", "_create_date"));
-		fldInfos.add(new FldInfo(false, "_delete_flag", "_delete_flag"));
+		fldInfos.add(new FldInfo(false, "__update_date", "__update_date"));
+		fldInfos.add(new FldInfo(false, "__create_date", "__create_date"));
+		fldInfos.add(new FldInfo(false, "__delete_flag", "__delete_flag"));
 	}
 
 	/**

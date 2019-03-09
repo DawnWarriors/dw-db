@@ -271,10 +271,10 @@ public abstract class DaoBase<T extends ModelBase>
 	{
 		if (StrUtil.isNotStrTrimNull(filter))
 		{
-			filter = "( " + filter + " )" + " and (_delete_flag is null or _delete_flag != 1)";
+			filter = "( " + filter + " )" + " and (__delete_flag is null or __delete_flag != 1)";
 		} else
 		{
-			filter = "_delete_flag is null or _delete_flag != 1";
+			filter = "__delete_flag is null or __delete_flag != 1";
 		}
 		return filter;
 	}

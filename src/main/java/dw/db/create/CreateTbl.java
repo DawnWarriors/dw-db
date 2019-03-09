@@ -67,11 +67,11 @@ public class CreateTbl
 			List<Map<String,String>> defInfos = defs.get("#flddef");
 			//-- 删除标志、创建日期、更新日期
 			//--删除标志
-			addDefaultFld(defInfos, tblName, "999", "_delete_flag", "删除标志", "int", "2", "0");
+			addDefaultFld(defInfos, tblName, "999", "__delete_flag", "删除标志", "int", "2", "0");
 			//--创建日期
-			addDefaultFld(defInfos, tblName, "998", "_create_date", "创建日期", "date", "8", "");
+			addDefaultFld(defInfos, tblName, "998", "__create_date", "创建日期", "date", "8", "");
 			//--更新日期
-			addDefaultFld(defInfos, tblName, "997", "_update_date", "更新日期", "date", "8", "");
+			addDefaultFld(defInfos, tblName, "997", "__update_date", "更新日期", "date", "8", "");
 		}
 		for (int i = 0 ; i < 4 ; i++)
 		{

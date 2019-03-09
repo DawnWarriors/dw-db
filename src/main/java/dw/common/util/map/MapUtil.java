@@ -1,5 +1,6 @@
 package dw.common.util.map;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dw.common.util.aop.ProxyTargetUtils;
 import dw.common.util.str.StrUtil;
 import dw.common.util.type.TypeUtil;
@@ -18,6 +19,8 @@ import java.util.Set;
 
 public class MapUtil
 {
+	private static ObjectMapper objectMapper = new ObjectMapper();
+
 	/**
 	 * 合并Map，将from中的键值复制到to中，并将to返回；
 	 *
@@ -85,16 +88,34 @@ public class MapUtil
 		}
 		String keyAry[] = keys.split(keySeparator);
 		String valueAry[] = values.split(valueSeparator);
-		Map<String,String> map = new HashMap<>();
-		for (int i = 0 ; i < keyAry.length ; i++)
+		return createMap(keyAry,valueAry);
+	}
+
+	/**
+	 * 根据给定的key和value集合，创建Map
+	 * 长度以key为准，
+	 * @param keys
+	 * @param values
+	 * @param <K> K数组
+	 * @param <V> V数组
+	 * @return Map
+	 */
+	public static <K,V> Map<K,V> createMap(K[] keys,V values[])
+	{
+		if (keys == null || keys.length == 0)
 		{
-			String key = keyAry[i];
-			if (valueAry.length - 1 < i)
+			return null;
+		}
+		Map<K,V> map = new HashMap<>();
+		for (int i = 0 ; i < keys.length ; i++)
+		{
+			K key = keys[i];
+			if (values.length - 1 < i)
 			{
 				map.put(key, null);
 			} else
 			{
-				map.put(key, valueAry[i]);
+				map.put(key, values[i]);
 			}
 		}
 		return map;
@@ -110,18 +131,7 @@ public class MapUtil
 	 */
 	public static <T> T mapToObject(Map<String,Object> map, Class<T> beanClass)
 	{
-		if (map == null)
-		{
-			return null;
-		}
-		try
-		{
-			T obj = beanClass.newInstance();
-			return mapToObject(map, obj);
-		} catch (InstantiationException | IllegalAccessException | IllegalArgumentException e)
-		{
-			throw new RuntimeException(e);
-		}
+		return objectMapper.convertValue(map, beanClass);
 	}
 
 	/**
@@ -140,7 +150,7 @@ public class MapUtil
 		}
 		try
 		{
-			Object target = obj;
+			Object target;
 			try
 			{
 				target = (T) ProxyTargetUtils.getTarget(obj);

@@ -18,12 +18,12 @@ import java.util.*;
 public abstract class ModelBase
 {
 	private   String __tblName;
-	protected Date   _update_date;    //更新时间
-	protected Date   _create_date;    //新建时间
-	private int _delete_flag = 0;
+	protected Date   __update_date;    //更新时间
+	protected Date   __create_date;    //新建时间
+	private int __delete_flag = 0;
 	private String id;
-	public  String token;        //token:控制新增和编辑动作
-	private final Map<String,Object> _oldDataMap_ = new HashMap<>(); //持久对象原始值
+	public  String __token;        //token:控制新增和编辑动作
+	private final Map<String,Object> __oldDataMap_ = new HashMap<>(); //持久对象原始值
 
 	/**
 	 * 用于model自己设置原始值时使用
@@ -32,7 +32,7 @@ public abstract class ModelBase
 	 */
 	protected void _set_oldDataMap_(Map<String,Object> dataMap)
 	{
-		MapUtil.mergeMap(_oldDataMap_, dataMap);
+		MapUtil.mergeMap(__oldDataMap_, dataMap);
 	}
 
 	public ModelBase()
@@ -49,8 +49,8 @@ public abstract class ModelBase
 	public String insert()
 	{
 		Date date = new Date();
-		this.set_create_date(date);
-		this.set_update_date(date);
+		this.set__create_date(date);
+		this.set__update_date(date);
 		if (StrUtil.isStrTrimNull(this.getId()))
 		{
 			this.setId(DBIDUtil.createUUId());
@@ -69,7 +69,7 @@ public abstract class ModelBase
 	{
 		Date date = new Date();
 		Database db = TransactionManager.getCurrentDBSession();
-		this.set_update_date(date);
+		this.set__update_date(date);
 		Map<String,Object> dataMap = db.queryMap("select * from " + __tblName + " where id='" + this.getId() + "'");
 		//不提供更新的列，如果没有值，不会进行操作，如果有值，直接覆盖原值
 		List<String> forbidFields = new ArrayList<>();
@@ -77,7 +77,7 @@ public abstract class ModelBase
 		Set<String> keySet = dataMap.keySet();
 		for (String key : keySet)
 		{
-			if (key.startsWith("_") && !key.equals("_update_date"))
+			if (key.startsWith("_") && !key.equals("__update_date"))
 			{
 				forbidFields.add(key);
 			}
@@ -120,7 +120,7 @@ public abstract class ModelBase
 	{
 		Date date = new Date();
 		Database db = TransactionManager.getCurrentDBSession();
-		this.set_update_date(date);
+		this.set__update_date(date);
 		Map<String,Object> dataMap = db.queryMap("select * from " + __tblName + " where id='" + this.getId() + "'");
 		this._set_oldDataMap_(dataMap);
 		ObjectProxyFactory.update(db, this);
@@ -141,8 +141,8 @@ public abstract class ModelBase
 	public void delete_logic()
 	{
 		Database db = TransactionManager.getCurrentDBSession();
-		this.set_update_date(new Date());
-		this.set_delete_flag(1);
+		this.set__update_date(new Date());
+		this.set__delete_flag(1);
 		ObjectProxyFactory.update(db, this);
 	}
 
@@ -225,7 +225,7 @@ public abstract class ModelBase
 	 */
 	public Map<String,Object> get_oldDataMap_()
 	{
-		return _oldDataMap_;
+		return __oldDataMap_;
 	}
 
 	/**
@@ -236,6 +236,6 @@ public abstract class ModelBase
 	 */
 	public void _setOldValue(String fldName, Object value)
 	{
-		_oldDataMap_.put(fldName, value);
+		__oldDataMap_.put(fldName, value);
 	}
 }

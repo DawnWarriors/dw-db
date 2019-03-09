@@ -6,12 +6,14 @@ import dw.db.base.DwSubsetLoadService;
 import dw.db.base.ModelBase;
 import dw.db.util.DwSpringUtil;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import net.sf.cglib.proxy.*;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 @Data
+@Slf4j
 public class DwModelProxy implements MethodInterceptor
 {
 	Object target;
@@ -41,7 +43,14 @@ public class DwModelProxy implements MethodInterceptor
 		//获取对应的属性
 		String methodName = method.getName();
 		String fldName = Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
-		Field field = cls.getDeclaredField(fldName);
+		Field field = null;
+		try
+		{
+			field = cls.getDeclaredField(fldName);
+		} catch (NoSuchFieldException e)
+		{
+			log.warn(e.getMessage());
+		}
 		if (field == null)
 		{
 			return oldValue;
