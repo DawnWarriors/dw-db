@@ -33,6 +33,10 @@ public class MacroUtil
 	public static String macroReplace(Map<String,Object> dataMap, String srcStr_)
 	{
 		String resultStr = dateMacroReplace(srcStr_);
+		if (dataMap == null)
+		{
+			return resultStr;
+		}
 		while (true)
 		{
 			int begin = 0;

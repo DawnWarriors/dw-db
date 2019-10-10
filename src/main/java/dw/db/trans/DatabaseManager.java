@@ -38,7 +38,7 @@ public class DatabaseManager
 	 *
 	 * @return DBSession
 	 */
-	static synchronized Database createDatabase()
+	public static synchronized Database createDatabase()
 	{
 		if (dataSource == null)
 		{
@@ -63,7 +63,7 @@ public class DatabaseManager
 	 *
 	 * @param db 数据库Session对象
 	 */
-	static void closeDatabase(Database db)
+	public static void closeDatabase(Database db)
 	{
 		try
 		{

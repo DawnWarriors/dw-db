@@ -2,6 +2,7 @@ package dw.db.sql;
 
 import dw.common.util.str.StrUtil;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +50,7 @@ public class SqlFilterUtil
 	 * @param <T>       任意类型对象
 	 * @return 返回过滤条件
 	 */
-	public static <T> String getInFilter(String fldName, String aliasName, List<T> valList, Map<String,Object> params)
+	public static <T> String getInFilter(String fldName, String aliasName, Collection<T> valList, Map<String,Object> params)
 	{
 		return getInFilter(fldName, aliasName, valList, params, false);
 	}
@@ -63,7 +64,7 @@ public class SqlFilterUtil
 	 * @param <T>     任意类型对象
 	 * @return 返回过滤条件
 	 */
-	public static <T> String getInFilter(String fldName, List<T> valList, Map<String,Object> params)
+	public static <T> String getInFilter(String fldName, Collection<T> valList, Map<String,Object> params)
 	{
 		return getInFilter(fldName, null, valList, params);
 	}
@@ -155,7 +156,7 @@ public class SqlFilterUtil
 	 * @param <T>     任意类型对象
 	 * @return 返回过滤条件
 	 */
-	public static <T> String getNotInFilter(String fldName, List<T> valList, Map<String,Object> params)
+	public static <T> String getNotInFilter(String fldName, Collection<T> valList, Map<String,Object> params)
 	{
 		return getInFilter(fldName, null, valList, params, true);
 	}
@@ -401,7 +402,7 @@ public class SqlFilterUtil
 		return filterBuf.toString();
 	}
 
-	private static <T> String getInFilter(String fldName, String aliasName, List<T> valList, Map<String,Object> params, boolean isNotIn)
+	private static <T> String getInFilter(String fldName, String aliasName, Collection<T> valList, Map<String,Object> params, boolean isNotIn)
 	{
 		if (aliasName == null)
 		{
@@ -409,14 +410,16 @@ public class SqlFilterUtil
 		}
 		StringBuffer filterBuf = new StringBuffer();
 		filterBuf.append(fldName + (isNotIn ? " not" : "") + " in (");
-		for (int i = 0 ; i < valList.size() ; i++)
+		int i = 0;
+		for (T t : valList)
 		{
 			if (i > 0)
 			{
 				filterBuf.append(",");
 			}
 			filterBuf.append(":" + aliasName + i);
-			params.put(fldName + i, valList.get(i));
+			params.put(fldName + i, t);
+			i++;
 		}
 		filterBuf.append(" )");
 		return filterBuf.toString();

@@ -8,11 +8,15 @@ import dw.db.trans.DatabaseConstant;
 import dw.db.sql.SqlFilterUtil;
 import dw.db.trans.Database;
 import dw.db.trans.TransactionManager;
+import org.apache.commons.io.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -35,7 +39,16 @@ public class CreateTbl
 	//与tags对应
 	private       String tables_temp[] = { "dw_fld_def_temp", "dw_index_def_temp", "dw_ref_def_temp", "dw_tbl_def_temp" };
 	//数据库脚本入口文件
-	private final String entranceFile  = "dw_tbl_base.txt";
+	private final static List<String> entranceFile  = new ArrayList<>();
+
+	static {
+		//表结构文件入口
+		addEntranceFile("dw_tbl_base.txt");
+	}
+
+	public synchronized static void addEntranceFile(String fileName){
+		entranceFile.add(fileName);
+	}
 
 	/**
 	 * 数据库创建和更新入口
@@ -48,7 +61,9 @@ public class CreateTbl
 		Map<String,List<Map<String,String>>> defs = new HashMap<>();
 		String pathPre = CreateTbl.class.getClassLoader().getResource("").toURI().getPath() + "/dw/";
 		//约定总入口只有一个
-		getDBFileTree(entranceFile, defineMap, defs, pathPre);
+		entranceFile.forEach(fileName->{
+			getDBFileTree(fileName, defineMap, defs, pathPre);
+		});
 		Database db = TransactionManager.getCurrentDBSession();
 		//先清空临时表
 		for (String tbl : tables_temp)
@@ -111,19 +126,24 @@ public class CreateTbl
 	private void getDBFileTree(String fileName, Map<String,String> defineMap, Map<String,List<Map<String,String>>> defs, String pathPre)
 	{
 		File file = new File(pathPre + fileName);
-		if (!file.exists())
-		{
-			throw new RuntimeException(fileName+":文件未找到");
-		}
-		InputStreamReader reader = null;
+		InputStream inputStream = null;
 		try
 		{
-			reader = new InputStreamReader(new FileInputStream(file), "utf-8");
-			char cbuf[] = new char[(int) file.length()];
-			reader.read(cbuf);
-			Map<String,String> defineMap_ = getDefineForOneFile(file.getName(), new String(cbuf));
-			List<String> includes = getIncludeForOneFile(file.getName(), new String(cbuf));
-			Map<String,List<Map<String,String>>> defs_ = getTagDefs(file.getName(), new String(cbuf));
+			if (file != null && file.exists())
+			{
+				inputStream = new FileInputStream(file);
+			} else
+			{
+				inputStream = CreateTbl.class.getClassLoader().getResourceAsStream("dw/" + fileName);
+				if (inputStream == null)
+				{
+					throw new RuntimeException(fileName + ":文件未找到");
+				}
+			}
+			String fileContent = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+			Map<String,String> defineMap_ = getDefineForOneFile(file.getName(), fileContent);
+			List<String> includes = getIncludeForOneFile(file.getName(), fileContent);
+			Map<String,List<Map<String,String>>> defs_ = getTagDefs(file.getName(), fileContent);
 			MapUtil.mergeMap(defineMap, defineMap_);
 			if (defs_ != null)
 			{
@@ -151,11 +171,11 @@ public class CreateTbl
 		} finally
 		{
 			//e.printStackTrace();
-			if (reader != null)
+			if (inputStream != null)
 			{
 				try
 				{
-					reader.close();
+					inputStream.close();
 				} catch (IOException e1)
 				{
 					throw new RuntimeException(e1);

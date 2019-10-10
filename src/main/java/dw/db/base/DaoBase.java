@@ -1,11 +1,14 @@
 package dw.db.base;
 
 import dw.common.util.str.StrUtil;
+import dw.db.sql.SqlFilterUtil;
 import dw.db.trans.Database;
 import dw.db.page.model.PageInfo;
 import dw.db.page.util.PageUtil;
 import dw.db.trans.TransactionManager;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -282,8 +285,8 @@ public abstract class DaoBase<T extends ModelBase>
 	/**
 	 * 获取查询条件
 	 *
-	 * @param keys 字段名
-	 * @param vals 字段值
+	 * @param keys        字段名
+	 * @param vals        字段值
 	 * @param paramGetter 参数Map
 	 * @return 查询条件
 	 */
@@ -296,8 +299,28 @@ public abstract class DaoBase<T extends ModelBase>
 			{
 				filter += " and ";
 			}
-			filter += keys[i] + "=:" + keys[i];
-			paramGetter.put(keys[i], vals[i]);
+			Object value = vals[i];
+			if (value.getClass().isArray())
+			{
+				if(((Object[]) value).length>0)
+				{
+					filter = SqlFilterUtil.getInFilter(keys[i], (Object[]) value, paramGetter);
+				}else{
+					filter += keys[i] + "=''";
+				}
+			} else if (value instanceof Collection)
+			{
+				if(((Collection<? extends Object>) value).size()>0)
+				{
+					filter = SqlFilterUtil.getInFilter(keys[i], (Collection<? extends Object>) value, paramGetter);
+				}else{
+					filter += keys[i] + "=''";
+				}
+			} else
+			{
+				filter += keys[i] + "=:" + keys[i];
+				paramGetter.put(keys[i], vals[i]);
+			}
 		}
 		return filter;
 	}
@@ -305,7 +328,7 @@ public abstract class DaoBase<T extends ModelBase>
 	/**
 	 * 查询忽略刪除标志
 	 *
-	 * @param filter 过滤条件
+	 * @param filter      过滤条件
 	 * @param paramGetter 参数Map
 	 * @return Model对象
 	 */
